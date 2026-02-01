@@ -1,0 +1,86 @@
+name: Publish Package
+
+on:
+    workflow_run:
+        workflows: ['CI Checks']
+        types:
+            - completed
+        branches:
+            - master
+
+jobs:
+    publish-npm:
+        runs-on: ubuntu-latest
+        if: github.event.workflow_run.conclusion == 'success'
+
+        permissions:
+            contents: write
+            issues: write
+            pull-requests: write
+            id-token: write
+            actions: read
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v3
+              with:
+                  version: latest
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Download dist artifact from CI Checks workflow
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                         owner: context.repo.owner,
+                         repo: context.repo.repo,
+                         run_id: context.payload.workflow_run.id,
+                      });
+                      let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+                        return artifact.name == "dist-artifact"
+                      })[0];
+                      let download = await github.rest.actions.downloadArtifact({
+                         owner: context.repo.owner,
+                         repo: context.repo.repo,
+                         artifact_id: matchArtifact.id,
+                         archive_format: 'zip',
+                      });
+                      let fs = require('fs');
+                      fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/dist-artifact.zip`, Buffer.from(download.data));
+
+            - name: Extract dist artifact
+              run: |
+                  unzip dist-artifact.zip -d dist
+                  rm dist-artifact.zip
+
+            - name: Verify downloaded dist
+              run: |
+                  echo "Contents of current directory:"
+                  ls -A
+                  echo "Contents of dist directory:"
+                  ls -R dist
+
+            - name: Publish to npm with Semantic Release
+              run: |
+                  echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+                  npx semantic-release
+              env:
+                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  HUSKY: 0
+                  SKIP_HUSKY: 1
+                  HUSKY_SKIP_HOOKS: 1

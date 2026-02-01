@@ -1,0 +1,134 @@
+{
+    "name": "constantia",
+    "version": "0.0.0",
+    "description": "A decorator-based, type-safe web framework for building self-documenting APIs with automatic OpenAPI generation",
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        },
+        "./express": {
+            "types": "./dist/adapters/express.d.ts",
+            "import": "./dist/adapters/express.js",
+            "require": "./dist/adapters/express.cjs"
+        },
+        "./errors": {
+            "types": "./dist/errors/index.d.ts",
+            "import": "./dist/errors/index.js",
+            "require": "./dist/errors/index.cjs"
+        },
+        "./types": {
+            "types": "./dist/types/index.d.ts",
+            "import": "./dist/types/index.js",
+            "require": "./dist/types/index.cjs"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "clean": "rimraf dist tsconfig.tsbuildinfo",
+        "build": "pnpm clean && pnpm lint && pnpm build:tsc",
+        "build:tsc": "tsc -p ./tsconfig.json && tsc-alias -p tsconfig.json --resolve-full-paths",
+        "dev": "pnpm clean && nodemon --watch \"src/**/*.ts\" --ext \"ts\" --exec \"pnpm build:tsc\"",
+        "lint": "tsc --noEmit && eslint --max-warnings 0",
+        "lint:fix": "tsc --noEmit && eslint --fix",
+        "format": "prettier --check './**/*.{js,jsx,ts,tsx,css,md,json}' --config ./.prettierrc",
+        "format:fix": "prettier --write './**/*.{js,jsx,ts,tsx,css,md,json}' --config ./.prettierrc",
+        "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+        "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+        "postinstall": "node_modules/.bin/deepkit-type-install",
+        "prepare": "husky"
+    },
+    "keywords": [
+        "typescript",
+        "framework",
+        "express",
+        "decorators",
+        "openapi",
+        "swagger",
+        "api",
+        "rest",
+        "type-safe",
+        "validation",
+        "web-framework"
+    ],
+    "author": "Sperid Labs",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/speridlabs/constantia.git"
+    },
+    "bugs": {
+        "url": "https://github.com/speridlabs/constantia/issues"
+    },
+    "homepage": "https://github.com/speridlabs/constantia#readme",
+    "devDependencies": {
+        "@commitlint/cli": "^19.8.1",
+        "@commitlint/config-conventional": "^19.8.1",
+        "@deepkit/type-compiler": "1.0.1-alpha.155",
+        "@eslint/eslintrc": "^3.3.1",
+        "@eslint/js": "^9.26.0",
+        "@semantic-release/changelog": "^6.0.3",
+        "@semantic-release/commit-analyzer": "^13.0.1",
+        "@semantic-release/git": "^10.0.1",
+        "@semantic-release/github": "^11.0.2",
+        "@semantic-release/npm": "^12.0.1",
+        "@semantic-release/release-notes-generator": "^14.0.3",
+        "@types/express": "^5.0.0",
+        "@types/express-fileupload": "^1.5.1",
+        "@types/jest": "^29.5.14",
+        "@types/node": "20",
+        "@typescript-eslint/eslint-plugin": "8.31.1",
+        "@typescript-eslint/parser": "8.31.1",
+        "conventional-changelog-conventionalcommits": "^8.0.0",
+        "cross-env": "^7.0.3",
+        "eslint": "^9.23.0",
+        "eslint-config-prettier": "^10.1.1",
+        "eslint-plugin-prettier": "^5.2.5",
+        "globals": "^16.0.0",
+        "husky": "^9.1.7",
+        "jest": "^29.7.0",
+        "lint-staged": "^16.1.5",
+        "nodemon": "^3.1.9",
+        "prettier": "3.3.3",
+        "rimraf": "^6.0.1",
+        "semantic-release": "^24.2.3",
+        "ts-jest": "^29.3.3",
+        "ts-node": "^10.9.2",
+        "tsc-alias": "^1.8.10",
+        "tsconfig-paths": "^4.2.0",
+        "typescript": "5.6.3"
+    },
+    "dependencies": {
+        "@deepkit/type": "1.0.1-alpha.155",
+        "busboy": "^1.6.0",
+        "express": "^4.21.1",
+        "express-fileupload": "^1.5.1",
+        "reflect-metadata": "^0.2.2"
+    },
+    "peerDependencies": {
+        "express": ">=4.0.0"
+    },
+    "peerDependenciesMeta": {
+        "express": {
+            "optional": true
+        }
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@deepkit/type-compiler"
+        ]
+    },
+    "lint-staged": {
+        "src/**/*.{ts,tsx,html,js,jsx,json,yml}": [
+            "prettier --write"
+        ]
+    }
+}
