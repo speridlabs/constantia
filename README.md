@@ -2,33 +2,41 @@
 
 A decorator-based, type-safe web framework for building self-documenting REST APIs with automatic OpenAPI generation. Built on top of [Deepkit](https://deepkit.io/) runtime types for zero-overhead validation.
 
-## Features
+```typescript
+@Controller('/users')
+class UserController {
+    @Get()
+    async list(): Promise<{ id: string; name: string }[]> {
+        return [{ id: '1', name: 'Alice' }];
+    }
 
--   **Decorator-based routing** — `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`
--   **Automatic type validation** — Parameters validated at runtime from TypeScript types (no schemas to write)
--   **OpenAPI generation** — Full OpenAPI 3.0 spec auto-generated from your controllers
--   **File uploads** — `@File`, `@Files` with size/count limits and temp file management
--   **Streaming** — `@FileStream`, `@DataStream` for large files and real-time data
--   **Middleware pipeline** — Koa-style `@Use` middleware with context injection via `@Inject`
--   **Adapter pattern** — Framework-agnostic core; ships with Express adapter
--   **Error handling** — Typed errors (`BadRequestError`, `NotFoundError`, etc.) that map to HTTP status codes
--   **Configurable logger** — Plug in your own logger or use the built-in console logger
+    @Get('/:id')
+    async getById(
+        @Param('id') id: string,
+    ): Promise<{ id: string; name: string }> {
+        if (id === '0') throw new BadRequestError('Invalid user ID');
+        return { id, name: 'Alice' };
+    }
 
-## Requirements
+    @Post()
+    async create(
+        @Body() body: { name: string; email: string },
+    ): Promise<{ id: string }> {
+        return { id: '42' };
+    }
+}
+```
 
--   **Node.js** >= 20
--   **TypeScript** 5.x
--   **pnpm** >= 8 (recommended)
+Define your types in TypeScript, get validation + OpenAPI for free. No schemas, no codegen, no boilerplate.
 
-> **Important:** Constantia uses [Deepkit Type Compiler](https://deepkit.io/documentation/type) for runtime type reflection. Your project's TypeScript must be patched by `@deepkit/type-compiler` at install time. See [Setup](#setup) for details.
-
-## Setup
+## Install
 
 ```bash
 pnpm add constantia
+pnpm add -D @deepkit/type-compiler@1.0.1-alpha.155
 ```
 
-Your `package.json` must include:
+Add to your `package.json`:
 
 ```json
 {
@@ -41,13 +49,7 @@ Your `package.json` must include:
 }
 ```
 
-Add `@deepkit/type-compiler` as a dev dependency:
-
-```bash
-pnpm add -D @deepkit/type-compiler@1.0.1-alpha.155
-```
-
-Your `tsconfig.json` **must** include:
+Add to your `tsconfig.json`:
 
 ```json
 {
@@ -59,7 +61,25 @@ Your `tsconfig.json` **must** include:
 }
 ```
 
-The `"reflection": true` key is read by the Deepkit type compiler to emit type metadata at compile time.
+> The `"reflection": true` key tells the Deepkit type compiler to emit type metadata at compile time.
+
+### Requirements
+
+-   **Node.js** >= 20
+-   **TypeScript** 5.x
+-   **pnpm** >= 8 (recommended)
+
+## Features
+
+-   **Decorator-based routing** — `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`
+-   **Automatic type validation** — Parameters validated at runtime from TypeScript types (no schemas to write)
+-   **OpenAPI generation** — Full OpenAPI 3.0 spec auto-generated from your controllers
+-   **File uploads** — `@File`, `@Files` with size/count limits and temp file management
+-   **Streaming** — `@FileStream`, `@DataStream` for large files and real-time data
+-   **Middleware pipeline** — Koa-style `@Use` middleware with context injection via `@Inject`
+-   **Adapter pattern** — Framework-agnostic core; ships with Express adapter
+-   **Error handling** — Typed errors (`BadRequestError`, `NotFoundError`, etc.) that map to HTTP status codes
+-   **Configurable logger** — Plug in your own logger or use the built-in console logger
 
 ## Quick Start
 
@@ -79,7 +99,6 @@ import {
     BadRequestError,
 } from 'constantia';
 
-// 1. Define a controller
 @Controller('/users')
 class UserController {
     @Get()
@@ -108,11 +127,9 @@ class UserController {
     }
 }
 
-// 2. Boot the app
 const app = express();
 const adapter = new ExpressAdapter(app);
 
-// 3. Register middlewares, controllers, and OpenAPI
 registerGlobalMiddlewaresWrapper([])(adapter);
 registerControllersWrapper([UserController])(adapter);
 await registerOpenAPI(adapter, {
