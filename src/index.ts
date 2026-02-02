@@ -46,24 +46,8 @@ export {
     MissingInjectionError,
 } from './errors';
 
-// Types
-export type {
-    SchemaType,
-    FileInput,
-    IFile,
-    DataStreamResponse,
-    FileStreamResponse,
-    StreamOptions,
-    Middleware,
-    MiddlewareFactory,
-} from './types';
-export {
-    extractMethodReturnSchema,
-    reflectionToSchema,
-    reflectionTypeToSchema,
-    extractParameterSchema,
-    createMiddlewareFactory,
-} from './types';
+// Types - using 'export *' to include Deepkit runtime type metadata (__Ω* symbols)
+export * from './types';
 export { File as FrameworkFile } from './types/files';
 
 // Adapters
