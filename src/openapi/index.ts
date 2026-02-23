@@ -32,10 +32,14 @@ export interface OpenAPIConfig {
 @Controller('/openapi.json', false)
 class OpenAPIController {
     private cachedSpec: OpenAPISpec | null = null;
-    private config: OpenAPIConfig;
+    static config: OpenAPIConfig = {};
 
-    constructor(config: OpenAPIConfig = {}) {
-        this.config = config;
+    constructor(config?: OpenAPIConfig) {
+        if (config) OpenAPIController.config = config;
+    }
+
+    private get config(): OpenAPIConfig {
+        return OpenAPIController.config;
     }
 
     private generateOpenAPISpec(
@@ -154,6 +158,10 @@ export const registerOpenAPI = async (
     options: RegisterOpenAPIOptions = {},
 ): Promise<void> => {
     const metadata = MetadataStorage.getInstance();
+
+    if (options.config) {
+        OpenAPIController.config = options.config;
+    }
 
     metadata.addController(OpenAPIController, '/openapi.json');
 
