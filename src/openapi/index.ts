@@ -6,6 +6,8 @@ import {
     PathsObject,
     OperationObject,
     ComponentsObject,
+    SecuritySchemeObject,
+    SecurityRequirementObject,
 } from './types';
 import {
     createOpenAPIResponses,
@@ -23,6 +25,9 @@ export interface OpenAPIConfig {
     title?: string;
     version?: string;
     description?: string;
+    securitySchemes?: {
+        [schemeName: string]: SecuritySchemeObject;
+    };
 }
 
 @Controller('/openapi.json', false)
@@ -92,11 +97,23 @@ class OpenAPIController {
                     summary: `${controllerTag}_${routeMeta.methodName}`,
                 };
 
+                if (routeMeta.security.length > 0) {
+                    const securityReq: SecurityRequirementObject = {};
+                    for (const scheme of routeMeta.security) {
+                        securityReq[scheme] = [];
+                    }
+                    operation.security = [securityReq];
+                }
+
                 if (operation.parameters?.length === 0)
                     delete operation.parameters;
 
                 paths[fullPath][httpMethod] = operation;
             }
+        }
+
+        if (this.config.securitySchemes) {
+            components.securitySchemes = { ...this.config.securitySchemes };
         }
 
         this.cachedSpec = {

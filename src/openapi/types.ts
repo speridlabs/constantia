@@ -5,6 +5,7 @@ export interface OpenAPISpec {
     components?: ComponentsObject;
     tags?: { name: string; description?: string }[];
     servers?: ServerObject[];
+    security?: SecurityRequirementObject[];
 }
 
 export interface InfoObject {
@@ -35,6 +36,7 @@ export interface OperationObject {
     requestBody?: RequestBodyObject | ReferenceObject;
     responses: ResponsesObject;
     deprecated?: boolean;
+    security?: SecurityRequirementObject[];
 }
 
 export interface ParameterObject {
@@ -93,6 +95,9 @@ export interface ComponentsObject {
         [requestBodyName: string]: RequestBodyObject | ReferenceObject;
     };
     headers?: { [headerName: string]: HeaderObject | ReferenceObject };
+    securitySchemes?: {
+        [schemeName: string]: SecuritySchemeObject | ReferenceObject;
+    };
 }
 
 export interface ServerObject {
@@ -104,4 +109,33 @@ export interface HeaderObject extends Omit<ParameterObject, 'name' | 'in'> {}
 
 export interface ReferenceObject {
     $ref: string;
+}
+
+export interface SecuritySchemeObject {
+    type: 'http' | 'apiKey' | 'oauth2' | 'openIdConnect';
+    description?: string;
+    name?: string;
+    in?: 'query' | 'header' | 'cookie';
+    scheme?: string;
+    bearerFormat?: string;
+    flows?: OAuthFlowsObject;
+    openIdConnectUrl?: string;
+}
+
+export interface OAuthFlowsObject {
+    implicit?: OAuthFlowObject;
+    password?: OAuthFlowObject;
+    clientCredentials?: OAuthFlowObject;
+    authorizationCode?: OAuthFlowObject;
+}
+
+export interface OAuthFlowObject {
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    refreshUrl?: string;
+    scopes: { [scope: string]: string };
+}
+
+export interface SecurityRequirementObject {
+    [schemeName: string]: string[];
 }

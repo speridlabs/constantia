@@ -25,6 +25,7 @@ class MetadataStorage {
         Function,
         { methodName: string; handler: Function }
     >();
+    private pendingSecurity = new Map<Function, Map<string, string[]>>();
 
     public static getInstance(): MetadataStorage {
         if (!MetadataStorage.instance)
@@ -67,6 +68,34 @@ class MetadataStorage {
         const key = methodName ?? '__class';
         store.set(key, [...(store.get(key) ?? []), ...mw]);
         this.pendingMiddlewares.set(target, store);
+    }
+
+    addSecurity(
+        target: Function,
+        methodName: string | undefined,
+        ...schemeNames: string[]
+    ) {
+        if (this.controllers.has(target)) {
+            const meta = this.controllers.get(target)!;
+
+            if (methodName) {
+                const r = meta.routes.find((r) => r.methodName === methodName);
+                if (!r)
+                    throw new Error(
+                        `@Security on "${methodName}" but route not found in ${target.name}`,
+                    );
+                r.security.push(...schemeNames);
+                return;
+            }
+
+            meta.security.push(...schemeNames);
+            return meta.routes.forEach((r) => r.security.push(...schemeNames));
+        }
+
+        const store = this.pendingSecurity.get(target) ?? new Map();
+        const key = methodName ?? '__class';
+        store.set(key, [...(store.get(key) ?? []), ...schemeNames]);
+        this.pendingSecurity.set(target, store);
     }
 
     addController(target: Function, path: string): void {
@@ -113,6 +142,9 @@ class MetadataStorage {
         const classLevel =
             this.pendingMiddlewares.get(target)?.get('__class') ?? [];
 
+        const classLevelSecurity =
+            this.pendingSecurity.get(target)?.get('__class') ?? [];
+
         let finalRoutes: RouteMetadata[] = [];
 
         if (routes) {
@@ -123,9 +155,15 @@ class MetadataStorage {
                             .get(target)
                             ?.get(route.methodName) ?? [];
 
+                    const perRouteSecurity =
+                        this.pendingSecurity
+                            .get(target)
+                            ?.get(route.methodName) ?? [];
+
                     return {
                         ...route,
                         middlewares: [...classLevel, ...perRoute],
+                        security: [...classLevelSecurity, ...perRouteSecurity],
                         parameters: (
                             parameters.get(route.methodName) || []
                         ).sort(
@@ -141,6 +179,7 @@ class MetadataStorage {
             path,
             routes: finalRoutes,
             middlewares: classLevel,
+            security: classLevelSecurity,
             defaultHandler: defaultHandler
                 ? {
                       methodName: defaultHandler.methodName,
@@ -159,11 +198,15 @@ class MetadataStorage {
         this.pendingParameters.delete(target);
         this.pendingMiddlewares.delete(target);
         this.pendingDefaultHandlers.delete(target);
+        this.pendingSecurity.delete(target);
     }
 
     addRoute(
         target: Function,
-        metadata: Omit<RouteMetadata, 'parameters' | 'middlewares'>,
+        metadata: Omit<
+            RouteMetadata,
+            'parameters' | 'middlewares' | 'security'
+        >,
     ): void {
         if (this.controllers.has(target)) {
             throw new Error(
@@ -280,6 +323,7 @@ class MetadataStorage {
             parameters: [],
             stream: streamInfo,
             middlewares: [],
+            security: [],
         });
 
         this.pendingRoutes.set(target, routes);
@@ -523,12 +567,14 @@ interface RouteMetadata {
     returnType: SchemaType;
     parameters: ParameterMetadata[];
     middlewares: Middleware[];
+    security: string[];
 }
 
 export interface ControllerMetadata {
     path: string;
     routes: RouteMetadata[];
     middlewares: Middleware[];
+    security: string[];
     defaultHandler?: {
         methodName: string;
         handler: Function;

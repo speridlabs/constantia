@@ -399,6 +399,40 @@ export const Use =
         );
     };
 
+export const Security =
+    (
+        schemeName: string,
+        ...mws: (Middleware | MiddlewareFactory)[]
+    ): ClassDecorator & MethodDecorator =>
+    (target: Function | object, propertyKey?: string | symbol) => {
+        const owner =
+            propertyKey === undefined ? target : (target as object).constructor;
+
+        MetadataStorage.getInstance().addSecurity(
+            owner as Function,
+            propertyKey?.toString(),
+            schemeName,
+        );
+
+        if (mws.length > 0) {
+            const resolvedMiddlewares: Middleware[] = mws.map((mw) => {
+                if (typeof mw === 'function') {
+                    if ((mw as MiddlewareFactory).isFactory) {
+                        return (mw as MiddlewareFactory)();
+                    }
+                    return mw as Middleware;
+                }
+                return mw as Middleware;
+            });
+
+            MetadataStorage.getInstance().addMiddleware(
+                owner as Function,
+                propertyKey?.toString(),
+                ...resolvedMiddlewares,
+            );
+        }
+    };
+
 export const DefaultHandler = (): MethodDecorator => {
     return (
         target: object,
