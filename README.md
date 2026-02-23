@@ -77,6 +77,7 @@ Add to your `tsconfig.json`:
 -   **File uploads** — `@File`, `@Files` with size/count limits and temp file management
 -   **Streaming** — `@FileStream`, `@DataStream` for large files and real-time data
 -   **Middleware pipeline** — Koa-style `@Use` middleware with context injection via `@Inject`
+-   **Security / Auth** — `@Security` decorator for OpenAPI security schemes + optional middleware enforcement
 -   **Adapter pattern** — Framework-agnostic core; ships with Express adapter
 -   **Error handling** — Typed errors (`BadRequestError`, `NotFoundError`, etc.) that map to HTTP status codes
 -   **Configurable logger** — Plug in your own logger or use the built-in console logger
@@ -248,6 +249,121 @@ class ProfileController {
     @Get()
     async getProfile(@Inject('user') user: User): Promise<User> {
         return user;
+    }
+}
+```
+
+### Security (OpenAPI Auth)
+
+The `@Security` decorator marks routes as requiring authentication and generates the corresponding `security` sections in the OpenAPI spec. It optionally accepts middleware to enforce auth at runtime — combining the OpenAPI metadata and middleware registration in a single decorator.
+
+#### Setup
+
+Define your security schemes when registering OpenAPI:
+
+```typescript
+import { registerOpenAPI } from 'constantia';
+
+await registerOpenAPI(adapter, {
+    config: {
+        title: 'My API',
+        version: '1.0.0',
+        securitySchemes: {
+            bearerAuth: {
+                type: 'http',
+                scheme: 'bearer',
+                bearerFormat: 'JWT',
+            },
+            apiKey: {
+                type: 'apiKey',
+                in: 'header',
+                name: 'X-API-Key',
+            },
+        },
+    },
+});
+```
+
+#### Usage
+
+```typescript
+import { Controller, Get, Post, Body, Security, Use, Middleware } from 'constantia';
+
+const authMiddleware: Middleware = async (ctx, next) => {
+    const token = ctx.request.headers['authorization'];
+    if (!token) throw new UnauthorizedError('Missing token');
+    const user = await verifyToken(token);
+    ctx.set('user', user);
+    await next();
+};
+
+// Mark + apply middleware in one decorator (class-level → all routes)
+@Security('bearerAuth', authMiddleware)
+@Controller('/users')
+class UserController {
+    @Get()
+    async list(): Promise<{ id: string; name: string }[]> {
+        return [{ id: '1', name: 'Alice' }];
+    }
+
+    @Post()
+    async create(@Body() body: { name: string }): Promise<{ id: string }> {
+        return { id: '2' };
+    }
+}
+```
+
+```typescript
+// Or apply security only to specific routes
+@Controller('/items')
+class ItemController {
+    // Public route — no security in OpenAPI, no middleware
+    @Get()
+    async list(): Promise<{ items: string[] }> {
+        return { items: ['a', 'b'] };
+    }
+
+    // Protected route — security in OpenAPI + middleware
+    @Security('bearerAuth', authMiddleware)
+    @Post()
+    async create(@Body() body: { name: string }): Promise<{ id: string }> {
+        return { id: '1' };
+    }
+}
+```
+
+```typescript
+// Or compose with existing @Use (separate middleware from OpenAPI metadata)
+@Use(authMiddleware)
+@Security('bearerAuth')
+@Controller('/admin')
+class AdminController {
+    @Get()
+    async dashboard(): Promise<{ status: string }> {
+        return { status: 'ok' };
+    }
+}
+```
+
+The generated OpenAPI spec will include:
+
+```json
+{
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "paths": {
+        "/users/": {
+            "get": {
+                "security": [{ "bearerAuth": [] }]
+            }
+        }
     }
 }
 ```
