@@ -8,6 +8,19 @@ import {
 import type { StreamOptions } from './types/stream';
 import { MetadataStorage, type ParameterMetadata } from './metadata';
 
+const resolveMiddlewares = (
+    mws: (Middleware | MiddlewareFactory)[],
+): Middleware[] =>
+    mws.map((mw) => {
+        if (typeof mw === 'function') {
+            if ((mw as MiddlewareFactory).isFactory) {
+                return (mw as MiddlewareFactory)();
+            }
+            return mw as Middleware;
+        }
+        return mw as Middleware;
+    });
+
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 export const Controller =
@@ -382,20 +395,10 @@ export const Use =
         const owner =
             propertyKey === undefined ? target : (target as object).constructor;
 
-        const resolvedMiddlewares: Middleware[] = mws.map((mw) => {
-            if (typeof mw === 'function') {
-                if ((mw as MiddlewareFactory).isFactory) {
-                    return (mw as MiddlewareFactory)();
-                }
-                return mw as Middleware;
-            }
-            return mw as Middleware;
-        });
-
         MetadataStorage.getInstance().addMiddleware(
             owner as Function,
             propertyKey?.toString(),
-            ...resolvedMiddlewares,
+            ...resolveMiddlewares(mws),
         );
     };
 
@@ -415,20 +418,10 @@ export const Security =
         );
 
         if (mws.length > 0) {
-            const resolvedMiddlewares: Middleware[] = mws.map((mw) => {
-                if (typeof mw === 'function') {
-                    if ((mw as MiddlewareFactory).isFactory) {
-                        return (mw as MiddlewareFactory)();
-                    }
-                    return mw as Middleware;
-                }
-                return mw as Middleware;
-            });
-
             MetadataStorage.getInstance().addMiddleware(
                 owner as Function,
                 propertyKey?.toString(),
-                ...resolvedMiddlewares,
+                ...resolveMiddlewares(mws),
             );
         }
     };

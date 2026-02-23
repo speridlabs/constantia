@@ -7,7 +7,6 @@ import {
     OperationObject,
     ComponentsObject,
     SecuritySchemeObject,
-    SecurityRequirementObject,
 } from './types';
 import {
     createOpenAPIResponses,
@@ -98,11 +97,11 @@ class OpenAPIController {
                 };
 
                 if (routeMeta.security.length > 0) {
-                    const securityReq: SecurityRequirementObject = {};
-                    for (const scheme of routeMeta.security) {
-                        securityReq[scheme] = [];
-                    }
-                    operation.security = [securityReq];
+                    operation.security = [
+                        Object.fromEntries(
+                            routeMeta.security.map((scheme) => [scheme, []]),
+                        ),
+                    ];
                 }
 
                 if (operation.parameters?.length === 0)
