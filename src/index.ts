@@ -18,6 +18,7 @@ export {
     DataStream,
     FileStream,
     Use,
+    Security,
     DefaultHandler,
 } from './decorators';
 export type { HttpMethod } from './decorators';

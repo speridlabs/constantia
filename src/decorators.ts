@@ -4,9 +4,23 @@ import {
     extractParameterSchema,
     extractMethodReturnSchema,
     MiddlewareFactory,
+    type SecurityMiddleware,
 } from './types';
 import type { StreamOptions } from './types/stream';
 import { MetadataStorage, type ParameterMetadata } from './metadata';
+
+const resolveMiddlewares = (
+    mws: (Middleware | MiddlewareFactory)[],
+): Middleware[] =>
+    mws.map((mw) => {
+        if (typeof mw === 'function') {
+            if ((mw as MiddlewareFactory).isFactory) {
+                return (mw as MiddlewareFactory)();
+            }
+            return mw as Middleware;
+        }
+        return mw as Middleware;
+    });
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -382,21 +396,47 @@ export const Use =
         const owner =
             propertyKey === undefined ? target : (target as object).constructor;
 
-        const resolvedMiddlewares: Middleware[] = mws.map((mw) => {
-            if (typeof mw === 'function') {
-                if ((mw as MiddlewareFactory).isFactory) {
-                    return (mw as MiddlewareFactory)();
-                }
-                return mw as Middleware;
-            }
-            return mw as Middleware;
-        });
+        const resolved = resolveMiddlewares(mws);
 
         MetadataStorage.getInstance().addMiddleware(
             owner as Function,
             propertyKey?.toString(),
-            ...resolvedMiddlewares,
+            ...resolved,
         );
+
+        for (const mw of resolved) {
+            if ('__securityScheme' in mw) {
+                MetadataStorage.getInstance().addSecurity(
+                    owner as Function,
+                    propertyKey?.toString(),
+                    (mw as SecurityMiddleware).__securityScheme,
+                );
+            }
+        }
+    };
+
+export const Security =
+    (
+        schemeName: string,
+        ...mws: (Middleware | MiddlewareFactory)[]
+    ): ClassDecorator & MethodDecorator =>
+    (target: Function | object, propertyKey?: string | symbol) => {
+        const owner =
+            propertyKey === undefined ? target : (target as object).constructor;
+
+        MetadataStorage.getInstance().addSecurity(
+            owner as Function,
+            propertyKey?.toString(),
+            schemeName,
+        );
+
+        if (mws.length > 0) {
+            MetadataStorage.getInstance().addMiddleware(
+                owner as Function,
+                propertyKey?.toString(),
+                ...resolveMiddlewares(mws),
+            );
+        }
     };
 
 export const DefaultHandler = (): MethodDecorator => {

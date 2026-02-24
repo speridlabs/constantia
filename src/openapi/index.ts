@@ -6,6 +6,7 @@ import {
     PathsObject,
     OperationObject,
     ComponentsObject,
+    SecuritySchemeObject,
 } from './types';
 import {
     createOpenAPIResponses,
@@ -23,15 +24,22 @@ export interface OpenAPIConfig {
     title?: string;
     version?: string;
     description?: string;
+    securitySchemes?: {
+        [schemeName: string]: SecuritySchemeObject;
+    };
 }
 
 @Controller('/openapi.json', false)
 class OpenAPIController {
     private cachedSpec: OpenAPISpec | null = null;
-    private config: OpenAPIConfig;
+    static config: OpenAPIConfig = {};
 
-    constructor(config: OpenAPIConfig = {}) {
-        this.config = config;
+    constructor(config?: OpenAPIConfig) {
+        if (config) OpenAPIController.config = config;
+    }
+
+    private get config(): OpenAPIConfig {
+        return OpenAPIController.config;
     }
 
     private generateOpenAPISpec(
@@ -92,11 +100,23 @@ class OpenAPIController {
                     summary: `${controllerTag}_${routeMeta.methodName}`,
                 };
 
+                if (routeMeta.security.length > 0) {
+                    operation.security = [
+                        Object.fromEntries(
+                            routeMeta.security.map((scheme) => [scheme, []]),
+                        ),
+                    ];
+                }
+
                 if (operation.parameters?.length === 0)
                     delete operation.parameters;
 
                 paths[fullPath][httpMethod] = operation;
             }
+        }
+
+        if (this.config.securitySchemes) {
+            components.securitySchemes = { ...this.config.securitySchemes };
         }
 
         this.cachedSpec = {
@@ -138,6 +158,10 @@ export const registerOpenAPI = async (
     options: RegisterOpenAPIOptions = {},
 ): Promise<void> => {
     const metadata = MetadataStorage.getInstance();
+
+    if (options.config) {
+        OpenAPIController.config = options.config;
+    }
 
     metadata.addController(OpenAPIController, '/openapi.json');
 
