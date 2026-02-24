@@ -3,7 +3,8 @@ import { UnauthorizedError } from '../errors';
 import type { Middleware } from '../types/middleware';
 import { createSecurityMiddleware } from '../types/middleware';
 
-const rawAuthMiddleware: Middleware = async (ctx, next) => {
+// Plain middleware (not tagged) — used to demonstrate @Security fallback
+const plainAuthMiddleware: Middleware = async (ctx, next) => {
     const token = ctx.request.headers['authorization'];
     if (!token || token !== 'Bearer valid-token') {
         throw new UnauthorizedError('Invalid or missing token');
@@ -15,7 +16,7 @@ const rawAuthMiddleware: Middleware = async (ctx, next) => {
 // Tag the middleware with its security scheme — @Use auto-detects it
 export const authMiddleware = createSecurityMiddleware(
     'bearerAuth',
-    rawAuthMiddleware,
+    plainAuthMiddleware,
 );
 
 // Seamless: just @Use(authMiddleware) — security is auto-detected
@@ -51,7 +52,7 @@ export class MixedController {
 }
 
 // @Security still works as a lightweight fallback for metadata-only
-@Use(rawAuthMiddleware)
+@Use(plainAuthMiddleware)
 @Security('bearerAuth')
 @Controller('/use-plus-security')
 export class UsePlusSecurityController {
