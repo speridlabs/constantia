@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Body, Security, Use } from '../decorators';
 import { UnauthorizedError } from '../errors';
 import type { Middleware } from '../types/middleware';
+import { createSecurityMiddleware } from '../types/middleware';
 
-export const authMiddleware: Middleware = async (ctx, next) => {
+const rawAuthMiddleware: Middleware = async (ctx, next) => {
     const token = ctx.request.headers['authorization'];
     if (!token || token !== 'Bearer valid-token') {
         throw new UnauthorizedError('Invalid or missing token');
@@ -11,7 +12,14 @@ export const authMiddleware: Middleware = async (ctx, next) => {
     await next();
 };
 
-@Security('bearerAuth', authMiddleware)
+// Tag the middleware with its security scheme — @Use auto-detects it
+export const authMiddleware = createSecurityMiddleware(
+    'bearerAuth',
+    rawAuthMiddleware,
+);
+
+// Seamless: just @Use(authMiddleware) — security is auto-detected
+@Use(authMiddleware)
 @Controller('/secure')
 export class SecureController {
     @Get()
@@ -34,14 +42,16 @@ export class MixedController {
         return { message: 'public' };
     }
 
-    @Security('bearerAuth', authMiddleware)
+    // Method-level: just @Use(authMiddleware)
+    @Use(authMiddleware)
     @Get('/protected')
     async protectedRoute(): Promise<{ message: string }> {
         return { message: 'protected' };
     }
 }
 
-@Use(authMiddleware)
+// @Security still works as a lightweight fallback for metadata-only
+@Use(rawAuthMiddleware)
 @Security('bearerAuth')
 @Controller('/use-plus-security')
 export class UsePlusSecurityController {

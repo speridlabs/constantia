@@ -77,7 +77,7 @@ Add to your `tsconfig.json`:
 -   **File uploads** — `@File`, `@Files` with size/count limits and temp file management
 -   **Streaming** — `@FileStream`, `@DataStream` for large files and real-time data
 -   **Middleware pipeline** — Koa-style `@Use` middleware with context injection via `@Inject`
--   **Security / Auth** — `@Security` decorator for OpenAPI security schemes + optional middleware enforcement
+-   **Security / Auth** — Tag middlewares with `createSecurityMiddleware()` and `@Use` auto-generates OpenAPI security sections
 -   **Adapter pattern** — Framework-agnostic core; ships with Express adapter
 -   **Error handling** — Typed errors (`BadRequestError`, `NotFoundError`, etc.) that map to HTTP status codes
 -   **Configurable logger** — Plug in your own logger or use the built-in console logger
@@ -255,11 +255,11 @@ class ProfileController {
 
 ### Security (OpenAPI Auth)
 
-The `@Security` decorator marks routes as requiring authentication and generates the corresponding `security` sections in the OpenAPI spec. It optionally accepts middleware to enforce auth at runtime — combining the OpenAPI metadata and middleware registration in a single decorator.
+Constantia auto-detects security middlewares passed to `@Use` and generates the corresponding `security` sections in the OpenAPI spec. Wrap your auth middleware with `createSecurityMiddleware()` to tag it with a scheme name — then just use `@Use()` as normal.
 
 #### Setup
 
-Define your security schemes when registering OpenAPI:
+1. Define your security schemes when registering OpenAPI:
 
 ```typescript
 import { registerOpenAPI } from 'constantia';
@@ -274,22 +274,17 @@ await registerOpenAPI(adapter, {
                 scheme: 'bearer',
                 bearerFormat: 'JWT',
             },
-            apiKey: {
-                type: 'apiKey',
-                in: 'header',
-                name: 'X-API-Key',
-            },
         },
     },
 });
 ```
 
-#### Usage
+2. Tag your auth middleware with its scheme name:
 
 ```typescript
-import { Controller, Get, Post, Body, Security, Use, Middleware } from 'constantia';
+import { createSecurityMiddleware, Middleware } from 'constantia';
 
-const authMiddleware: Middleware = async (ctx, next) => {
+const rawAuthMiddleware: Middleware = async (ctx, next) => {
     const token = ctx.request.headers['authorization'];
     if (!token) throw new UnauthorizedError('Missing token');
     const user = await verifyToken(token);
@@ -297,8 +292,17 @@ const authMiddleware: Middleware = async (ctx, next) => {
     await next();
 };
 
-// Mark + apply middleware in one decorator (class-level → all routes)
-@Security('bearerAuth', authMiddleware)
+// Tag the middleware — @Use will auto-detect the security scheme
+const authMiddleware = createSecurityMiddleware('bearerAuth', rawAuthMiddleware);
+```
+
+#### Usage
+
+```typescript
+import { Controller, Get, Post, Body, Use } from 'constantia';
+
+// Class-level: all routes require auth, OpenAPI security auto-generated
+@Use(authMiddleware)
 @Controller('/users')
 class UserController {
     @Get()
@@ -314,7 +318,7 @@ class UserController {
 ```
 
 ```typescript
-// Or apply security only to specific routes
+// Method-level: only specific routes require auth
 @Controller('/items')
 class ItemController {
     // Public route — no security in OpenAPI, no middleware
@@ -323,8 +327,8 @@ class ItemController {
         return { items: ['a', 'b'] };
     }
 
-    // Protected route — security in OpenAPI + middleware
-    @Security('bearerAuth', authMiddleware)
+    // Protected route — security in OpenAPI + middleware, auto-detected
+    @Use(authMiddleware)
     @Post()
     async create(@Body() body: { name: string }): Promise<{ id: string }> {
         return { id: '1' };
@@ -332,18 +336,7 @@ class ItemController {
 }
 ```
 
-```typescript
-// Or compose with existing @Use (separate middleware from OpenAPI metadata)
-@Use(authMiddleware)
-@Security('bearerAuth')
-@Controller('/admin')
-class AdminController {
-    @Get()
-    async dashboard(): Promise<{ status: string }> {
-        return { status: 'ok' };
-    }
-}
-```
+> **Fallback:** If you need to add OpenAPI security metadata without `createSecurityMiddleware`, the `@Security('schemeName')` decorator is still available.
 
 The generated OpenAPI spec will include:
 

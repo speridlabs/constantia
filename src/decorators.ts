@@ -4,6 +4,7 @@ import {
     extractParameterSchema,
     extractMethodReturnSchema,
     MiddlewareFactory,
+    type SecurityMiddleware,
 } from './types';
 import type { StreamOptions } from './types/stream';
 import { MetadataStorage, type ParameterMetadata } from './metadata';
@@ -395,11 +396,23 @@ export const Use =
         const owner =
             propertyKey === undefined ? target : (target as object).constructor;
 
+        const resolved = resolveMiddlewares(mws);
+
         MetadataStorage.getInstance().addMiddleware(
             owner as Function,
             propertyKey?.toString(),
-            ...resolveMiddlewares(mws),
+            ...resolved,
         );
+
+        for (const mw of resolved) {
+            if ('__securityScheme' in mw) {
+                MetadataStorage.getInstance().addSecurity(
+                    owner as Function,
+                    propertyKey?.toString(),
+                    (mw as SecurityMiddleware).__securityScheme,
+                );
+            }
+        }
     };
 
 export const Security =

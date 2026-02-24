@@ -68,7 +68,7 @@ async function createApp(): Promise<express.Express> {
     return app;
 }
 
-describe('Security decorator + OpenAPI auth integration', () => {
+describe('Security middleware auto-detection + OpenAPI auth integration', () => {
     let app: express.Express;
 
     beforeAll(async () => {
@@ -93,7 +93,7 @@ describe('Security decorator + OpenAPI auth integration', () => {
             });
         });
 
-        it('should add security to class-level @Security routes', () => {
+        it('should auto-detect security from @Use(securityMiddleware) at class level', () => {
             const listOp = spec.paths['/secure/']?.get;
             expect(listOp).toBeDefined();
             expect(listOp!.security).toEqual([{ bearerAuth: [] }]);
@@ -103,7 +103,7 @@ describe('Security decorator + OpenAPI auth integration', () => {
             expect(createOp!.security).toEqual([{ bearerAuth: [] }]);
         });
 
-        it('should add security only to method-level @Security routes', () => {
+        it('should auto-detect security from @Use(securityMiddleware) at method level', () => {
             const publicOp = spec.paths['/mixed/']?.get;
             expect(publicOp).toBeDefined();
             expect(publicOp!.security).toBeUndefined();
@@ -113,7 +113,7 @@ describe('Security decorator + OpenAPI auth integration', () => {
             expect(protectedOp!.security).toEqual([{ bearerAuth: [] }]);
         });
 
-        it('should add security when @Use + @Security combined', () => {
+        it('should add security when @Use + @Security combined (fallback)', () => {
             const listOp = spec.paths['/use-plus-security/']?.get;
             expect(listOp).toBeDefined();
             expect(listOp!.security).toEqual([{ bearerAuth: [] }]);
@@ -125,7 +125,7 @@ describe('Security decorator + OpenAPI auth integration', () => {
             expect(spec.info.version).toBe('1.0.0');
         });
 
-        it('should not add security to routes without @Security', () => {
+        it('should not add security to routes without security middleware', () => {
             const publicOp = spec.paths['/mixed/']?.get;
             expect(publicOp).toBeDefined();
             expect(publicOp!.security).toBeUndefined();
@@ -134,12 +134,12 @@ describe('Security decorator + OpenAPI auth integration', () => {
 
     // -- Middleware enforcement tests --
     describe('Auth middleware enforcement', () => {
-        it('should reject unauthenticated requests on class-level @Security', async () => {
+        it('should reject unauthenticated requests on class-level security middleware', async () => {
             const res = await request(app).get('/secure/');
             expect(res.status).toBe(401);
         });
 
-        it('should allow authenticated requests on class-level @Security', async () => {
+        it('should allow authenticated requests on class-level security middleware', async () => {
             const res = await request(app)
                 .get('/secure/')
                 .set('Authorization', 'Bearer valid-token');
@@ -153,12 +153,12 @@ describe('Security decorator + OpenAPI auth integration', () => {
             expect(res.body.message).toBe('public');
         });
 
-        it('should reject unauthenticated requests on method-level @Security', async () => {
+        it('should reject unauthenticated requests on method-level security middleware', async () => {
             const res = await request(app).get('/mixed/protected');
             expect(res.status).toBe(401);
         });
 
-        it('should allow authenticated requests on method-level @Security', async () => {
+        it('should allow authenticated requests on method-level security middleware', async () => {
             const res = await request(app)
                 .get('/mixed/protected')
                 .set('Authorization', 'Bearer valid-token');
