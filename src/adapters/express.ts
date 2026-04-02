@@ -1,6 +1,12 @@
 import express from 'express';
 import fileupload from 'express-fileupload';
-import type { Express, Request, Response, RequestHandler } from 'express';
+import type {
+    Express,
+    Request,
+    Response,
+    RequestHandler,
+    NextFunction,
+} from 'express';
 
 import { logger } from '../logger';
 
@@ -65,6 +71,8 @@ class ExpressAdapter implements IFrameworkAdapter {
 
         for (let i = 0; i < metadata.length; i++)
             this.registerController(metadata[i], controllerClasses[i]);
+
+        this.registerCatchAllErrorHandler();
     }
 
     private registerController(
@@ -132,6 +140,15 @@ class ExpressAdapter implements IFrameworkAdapter {
         );
     }
 
+    private wrapMiddleware(mw: RequestHandler): RequestHandler {
+        return (req: Request, res: Response, next: NextFunction) => {
+            mw(req, res, (err?: unknown) => {
+                if (err) return this.handleError(res, err as Error);
+                next();
+            });
+        };
+    }
+
     private buildNativeMiddlewares(route: RouteMetadata): RequestHandler[] {
         const mws: RequestHandler[] = [];
 
@@ -141,14 +158,16 @@ class ExpressAdapter implements IFrameworkAdapter {
 
         if (hasRawBodyParam) {
             mws.push(
-                express.json({
-                    verify: (req: Request, _res: Response, buf: Buffer) => {
-                        req.rawBody = buf;
-                    },
-                }),
+                this.wrapMiddleware(
+                    express.json({
+                        verify: (req: Request, _res: Response, buf: Buffer) => {
+                            req.rawBody = buf;
+                        },
+                    }),
+                ),
             );
         } else {
-            mws.push(express.json());
+            mws.push(this.wrapMiddleware(express.json()));
         }
 
         const fileParams = route.parameters.filter((p) => p.type === 'file');
@@ -229,6 +248,15 @@ class ExpressAdapter implements IFrameworkAdapter {
             return res.status(err.status).json({
                 error: err.name,
                 message: `[${err.name}]: ${err.message}`,
+            });
+        }
+
+        const statusCode = (err as Error & { status?: number }).status;
+        if (statusCode && statusCode >= 400 && statusCode < 500) {
+            if (res.headersSent) return;
+            return res.status(statusCode).json({
+                error: 'BadRequestError',
+                message: `[BadRequestError]: ${err.message}`,
             });
         }
 
@@ -677,6 +705,17 @@ class ExpressAdapter implements IFrameworkAdapter {
                 },
             );
         }
+    }
+    private registerCatchAllErrorHandler(): void {
+        const handler = this.handleError.bind(this);
+        this.app.use(function catchAllErrorHandler(
+            err: Error,
+            _req: Request,
+            res: Response,
+            _next: NextFunction,
+        ) {
+            handler(res, err);
+        });
     }
 }
 
