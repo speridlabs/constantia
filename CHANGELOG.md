@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2](https://github.com/speridlabs/constantia/compare/v1.0.1...v1.0.2) (2026-04-02)
+
+### Bug Fixes
+
+* handle body-parser errors gracefully in ExpressAdapter ([c6cc51a](https://github.com/speridlabs/constantia/commit/c6cc51a2961f01d7f37d8e9c8aa0e7ade5e01795))
+
 ## [1.0.1](https://github.com/speridlabs/constantia/compare/v1.0.0...v1.0.1) (2026-02-02)
 
 ### Bug Fixes
