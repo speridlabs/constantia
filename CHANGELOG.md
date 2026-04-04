@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.3](https://github.com/speridlabs/constantia/compare/v1.0.2...v1.0.3) (2026-04-04)
+
+### Bug Fixes
+
+* add Record/index-signature support for schema generation and validation ([3901ac6](https://github.com/speridlabs/constantia/commit/3901ac6d677c654e385e75a15a698b38f8b2ad14))
+
 ## [1.0.2](https://github.com/speridlabs/constantia/compare/v1.0.1...v1.0.2) (2026-04-02)
 
 ### Bug Fixes
