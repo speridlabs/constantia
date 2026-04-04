@@ -144,6 +144,10 @@ export const validateAndTransform = (
                 }
             }
 
+            if (!schema.properties && !schema.additionalProperties) {
+                return value;
+            }
+
             const result: Record<string, unknown> = {};
             if (schema.properties) {
                 for (const [key, propSchema] of Object.entries(
@@ -166,6 +170,25 @@ export const validateAndTransform = (
                     }
                 }
             }
+
+            if (schema.additionalProperties) {
+                const objValue = value as Record<string, unknown>;
+                const knownKeys = schema.properties
+                    ? new Set(Object.keys(schema.properties))
+                    : new Set<string>();
+                for (const [key, val] of Object.entries(objValue)) {
+                    if (!knownKeys.has(key)) {
+                        const propPath = path ? `${path}.${key}` : key;
+                        result[key] = validateAndTransform(
+                            val,
+                            schema.additionalProperties,
+                            paramType,
+                            propPath,
+                        );
+                    }
+                }
+            }
+
             return result;
 
         case 'union':

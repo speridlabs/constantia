@@ -72,11 +72,19 @@ export const schemaTypeToOpenAPISchema = (
                     }
                 }
             }
-            return {
+            const objectSchema: SchemaObject = {
                 type: 'object',
                 properties: properties,
                 required: schemaType.required,
             };
+            if (schemaType.additionalProperties) {
+                objectSchema.additionalProperties =
+                    schemaTypeToOpenAPISchema(
+                        schemaType.additionalProperties,
+                        components,
+                    ) || {};
+            }
+            return objectSchema;
         }
 
         case 'union': {

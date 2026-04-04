@@ -53,67 +53,115 @@ const reflectionToSchema = (
     };
 };
 
-const reflectionTypeToSchema = (t: Type): SchemaType => {
-    switch (t.kind) {
-        case ReflectionKind.string:
-            return { type: 'string' };
-        case ReflectionKind.number:
-            return { type: 'number' };
-        case ReflectionKind.boolean:
-            return { type: 'boolean' };
-        case ReflectionKind.array:
-            return {
-                type: 'array',
-                items: reflectionTypeToSchema(t.type),
-            };
-        case ReflectionKind.objectLiteral: {
-            const nestedRef = ReflectionClass.from(t);
-            return reflectionToSchema(nestedRef);
-        }
-        case ReflectionKind.class: {
-            if (t.classType === Date) {
-                return { type: 'string', format: 'date-time' };
-            }
+const processingTypes = new WeakSet<object>();
 
-            const nestedRef = ReflectionClass.from(t);
-            return reflectionToSchema(nestedRef);
-        }
-        case ReflectionKind.promise:
-            return reflectionTypeToSchema(t.type);
-        case ReflectionKind.union: {
-            const types = t.types.map((subType) =>
-                reflectionTypeToSchema(subType),
-            );
-            return { oneOf: types, type: 'union' };
-        }
-        case ReflectionKind.literal:
-            return { type: 'string' };
-        case ReflectionKind.tuple: {
-            const elements = t.types.map((elementType) =>
-                reflectionTypeToSchema(elementType),
-            );
-            return {
-                type: 'tuple',
-                elements: elements,
-            };
-        }
-        case ReflectionKind.tupleMember:
-            return reflectionTypeToSchema(t.type);
-        case ReflectionKind.never:
-            return { type: 'null' };
-        case ReflectionKind.undefined:
-            return { type: 'null' };
-        case ReflectionKind.null:
-            return { type: 'null' };
-        case ReflectionKind.void:
-            return { type: 'null' };
-        case ReflectionKind.any:
-            if (t.parent?.kind === ReflectionKind.property) {
-                return undefined as unknown as SchemaType;
+const reflectionTypeToSchema = (t: Type): SchemaType => {
+    if (
+        (t.kind === ReflectionKind.objectLiteral ||
+            t.kind === ReflectionKind.class) &&
+        processingTypes.has(t)
+    ) {
+        return { type: 'object' };
+    }
+
+    const shouldTrack =
+        t.kind === ReflectionKind.objectLiteral ||
+        t.kind === ReflectionKind.class;
+    if (shouldTrack) processingTypes.add(t);
+
+    try {
+        switch (t.kind) {
+            case ReflectionKind.string:
+                return { type: 'string' };
+            case ReflectionKind.number:
+                return { type: 'number' };
+            case ReflectionKind.boolean:
+                return { type: 'boolean' };
+            case ReflectionKind.array:
+                return {
+                    type: 'array',
+                    items: reflectionTypeToSchema(t.type),
+                };
+            case ReflectionKind.objectLiteral: {
+                const nestedRef = ReflectionClass.from(t);
+                const schema = reflectionToSchema(nestedRef);
+
+                if (schema.type === 'object') {
+                    const indexSigs = t.types.filter(
+                        (member) =>
+                            member.kind === ReflectionKind.indexSignature,
+                    );
+                    if (indexSigs.length > 0) {
+                        schema.additionalProperties = reflectionTypeToSchema(
+                            (
+                                indexSigs[0] as {
+                                    kind: ReflectionKind;
+                                    type: Type;
+                                }
+                            ).type,
+                        );
+                    }
+                }
+
+                return schema;
             }
-            throw new Error('Raw "any" type is not supported');
-        default:
-            throw new Error(`Unsupported type ${t.kind} of type ${t}`);
+            case ReflectionKind.class: {
+                if (t.classType === Date) {
+                    return { type: 'string', format: 'date-time' };
+                }
+
+                const nestedRef = ReflectionClass.from(t);
+                return reflectionToSchema(nestedRef);
+            }
+            case ReflectionKind.promise:
+                return reflectionTypeToSchema(t.type);
+            case ReflectionKind.union: {
+                const types = t.types.map((subType) =>
+                    reflectionTypeToSchema(subType),
+                );
+                return { oneOf: types, type: 'union' };
+            }
+            case ReflectionKind.literal:
+                return { type: 'string' };
+            case ReflectionKind.tuple: {
+                const elements = t.types.map((elementType) =>
+                    reflectionTypeToSchema(elementType),
+                );
+                return {
+                    type: 'tuple',
+                    elements: elements,
+                };
+            }
+            case ReflectionKind.tupleMember:
+                return reflectionTypeToSchema(t.type);
+            case ReflectionKind.never:
+                return { type: 'null' };
+            case ReflectionKind.undefined:
+                return { type: 'null' };
+            case ReflectionKind.null:
+                return { type: 'null' };
+            case ReflectionKind.void:
+                return { type: 'null' };
+            case ReflectionKind.object:
+                return { type: 'object' };
+            case ReflectionKind.unknown:
+                if (
+                    t.parent?.kind === ReflectionKind.property ||
+                    t.parent?.kind === ReflectionKind.propertySignature
+                ) {
+                    return undefined as unknown as SchemaType;
+                }
+                return { type: 'object' };
+            case ReflectionKind.any:
+                if (t.parent?.kind === ReflectionKind.property) {
+                    return undefined as unknown as SchemaType;
+                }
+                throw new Error('Raw "any" type is not supported');
+            default:
+                throw new Error(`Unsupported type ${t.kind} of type ${t}`);
+        }
+    } finally {
+        if (shouldTrack) processingTypes.delete(t);
     }
 };
 
@@ -137,6 +185,7 @@ interface SchemaType {
     required?: string[];
     oneOf?: SchemaType[];
     properties?: Record<string, SchemaType>;
+    additionalProperties?: SchemaType;
 }
 
 export type { SchemaType };
