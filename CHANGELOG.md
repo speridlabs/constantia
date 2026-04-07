@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1](https://github.com/speridlabs/constantia/compare/v1.1.0...v1.1.1) (2026-04-07)
+
+### Bug Fixes
+
+* context injection distinguishes missing keys from undefined values ([eb8d083](https://github.com/speridlabs/constantia/commit/eb8d0836f141b1a54c13fddbdc88a4c2371b27ed))
+
 ## [1.1.0](https://github.com/speridlabs/constantia/compare/v1.0.3...v1.1.0) (2026-04-07)
 
 ### Features
