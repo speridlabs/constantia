@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/speridlabs/constantia/compare/v1.0.3...v1.1.0) (2026-04-07)
+
+### Features
+
+* auto-detect raw PUT bodies in @File/@Files decorators ([fdc5dbe](https://github.com/speridlabs/constantia/commit/fdc5dbeb37eb00af7a8cf8e3e07383014559bfd7))
+
 ## [1.0.3](https://github.com/speridlabs/constantia/compare/v1.0.2...v1.0.3) (2026-04-04)
 
 ### Bug Fixes
