@@ -2,6 +2,7 @@ export interface Context {
     readonly request: IRequest;
     readonly response: IResponse;
     get<T>(key: string): T | undefined;
+    has(key: string): boolean;
     set<T>(key: string, value: T): void;
 }
 
@@ -34,6 +35,9 @@ export class BasicContext implements Context {
     ) {}
     get<T>(k: string) {
         return this.store.get(k) as T | undefined;
+    }
+    has(k: string) {
+        return this.store.has(k);
     }
     set<T>(k: string, v: T) {
         this.store.set(k, v);

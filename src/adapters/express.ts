@@ -468,15 +468,15 @@ class ExpressAdapter implements IFrameworkAdapter {
             try {
                 switch (param.type) {
                     case 'ctx':
-                        value = param.name ? ctx.get(param.name) : ctx;
-
-                        if (value === undefined || value === null) {
-                            if (param.required) {
-                                const k = param.name ?? '<context>';
-                                throw new MissingInjectionError(k);
-                            }
+                        if (!param.name) {
+                            value = ctx;
+                            break;
                         }
-
+                        if (ctx.has(param.name)) {
+                            value = ctx.get(param.name);
+                        } else if (param.required) {
+                            throw new MissingInjectionError(param.name);
+                        }
                         break;
                     case 'file':
                         if (param.name) {
