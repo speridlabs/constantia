@@ -1,5 +1,8 @@
 import express from 'express';
 import fileupload from 'express-fileupload';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import type {
     Express,
     Request,
@@ -34,6 +37,7 @@ declare global {
     namespace Express {
         interface Request {
             rawBody?: Buffer;
+            rawBodyFile?: File;
             uploadedFiles?: File[];
         }
     }
@@ -189,20 +193,55 @@ class ExpressAdapter implements IFrameworkAdapter {
                 .reduce((a, b) => a + b, 0);
 
             const tmp = os.tmpdir();
-            mws.push(
-                fileupload({
-                    debug: false,
-                    useTempFiles: true,
-                    tempFileDir: tmp,
-                    abortOnLimit: true,
-                    safeFileNames: true,
-                    preserveExtension: 5,
-                    limits: {
-                        fileSize: maxFileLimit,
-                        files: totalMaxFiles,
-                    },
-                }),
-            );
+
+            // Auto-detect: multipart → fileupload, raw body → stream to temp file as synthetic File
+            mws.push((req: Request, res: Response, next: NextFunction) => {
+                const ct = req.headers['content-type'] ?? '';
+                if (ct.includes('multipart')) {
+                    return fileupload({
+                        debug: false,
+                        useTempFiles: true,
+                        tempFileDir: tmp,
+                        abortOnLimit: true,
+                        safeFileNames: true,
+                        preserveExtension: 5,
+                        limits: {
+                            fileSize: maxFileLimit,
+                            files: totalMaxFiles,
+                        },
+                    })(req, res, next);
+                }
+
+                const tempPath = path.join(tmp, `raw-${crypto.randomUUID()}`);
+                const ws = fs.createWriteStream(tempPath);
+                let size = 0;
+
+                req.on('data', (chunk: Buffer) => {
+                    size += chunk.length;
+                });
+                req.pipe(ws);
+
+                ws.on('finish', () => {
+                    const md5 = crypto.randomUUID().replace(/-/g, '');
+                    req.rawBodyFile = new File({
+                        md5,
+                        name: 'raw-body',
+                        data: Buffer.alloc(0),
+                        size,
+                        mimetype: ct || 'application/octet-stream',
+                        truncated: false,
+                        tempFilePath: tempPath,
+                        mv: (_p, cb) => {
+                            fs.rename(tempPath, _p, (err) => cb(err as Error));
+                        },
+                    });
+                    next();
+                });
+
+                ws.on('error', () =>
+                    next(new Error('Failed to buffer raw body')),
+                );
+            });
         }
 
         return mws;
@@ -479,13 +518,24 @@ class ExpressAdapter implements IFrameworkAdapter {
                                 }
                             }
                         } else {
+                            if (!req.files && req.rawBodyFile) {
+                                const rbf = req.rawBodyFile;
+                                value = param.options?.forceArray ? [rbf] : rbf;
+                                req.rawBodyFile = undefined;
+                                req.uploadedFiles = req.uploadedFiles ?? [];
+                                req.uploadedFiles.push(rbf);
+                                break;
+                            }
+
                             if (!req.files) {
                                 if (param.required) {
                                     throw new BadRequestError(
                                         'No files were uploaded',
                                     );
                                 } else {
-                                    value = [];
+                                    value = param.options?.forceArray
+                                        ? []
+                                        : undefined;
                                     break;
                                 }
                             }
@@ -500,7 +550,9 @@ class ExpressAdapter implements IFrameworkAdapter {
                                         'No files uploaded',
                                     );
                                 } else {
-                                    value = [];
+                                    value = param.options?.forceArray
+                                        ? []
+                                        : undefined;
                                     break;
                                 }
                             }
