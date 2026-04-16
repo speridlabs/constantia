@@ -44,24 +44,13 @@ declare global {
 }
 
 class ExpressAdapter implements IFrameworkAdapter {
+    private globalMiddlewares: Middleware[] = [];
+
     constructor(private readonly app: Express) {}
 
     registerGlobalMiddlewares(middlewares: Middleware[]): void {
         this.app.use(express.urlencoded({ extended: true }));
-        if (middlewares.length === 0) return;
-        for (const middleware of middlewares) {
-            this.app.use(async (req: Request, res: Response, next) => {
-                const ctx: Context = new BasicContext(req, res);
-
-                try {
-                    await middleware(ctx, async () => {
-                        next();
-                    });
-                } catch (err) {
-                    this.handleError(res, err as Error);
-                }
-            });
-        }
+        this.globalMiddlewares = middlewares;
     }
 
     registerControllers([metadata, controllerClasses]: [
@@ -113,6 +102,7 @@ class ExpressAdapter implements IFrameworkAdapter {
             this.buildNativeMiddlewares(route);
 
         const frameworkPipeline: Middleware[] = [
+            ...this.globalMiddlewares,
             ...route.middlewares,
             this.makeCoreHandler(route, controllerInstance),
         ];
@@ -719,6 +709,7 @@ class ExpressAdapter implements IFrameworkAdapter {
                     const ctx: Context = new BasicContext(req, res);
 
                     const mws: Middleware[] = [
+                        ...this.globalMiddlewares,
                         ...(defaultHandler.middlewares ?? []),
                         async (_ctx, next) => {
                             try {
