@@ -260,6 +260,8 @@ class ExpressAdapter implements IFrameworkAdapter {
             const args = this.extractParameters(req, route.parameters, ctx);
             const result = await route.handler.apply(controller, args);
 
+            if (res.headersSent) return await next();
+
             if (route.stream)
                 return await this.handleStreamResponse(result, route, req, res);
 
