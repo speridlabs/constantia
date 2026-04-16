@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.3](https://github.com/speridlabs/constantia/compare/v1.1.2...v1.1.3) (2026-04-16)
+
+### Bug Fixes
+
+* **express:** skip auto-response when handler already sent headers ([15be69d](https://github.com/speridlabs/constantia/commit/15be69decd5a2b0112eda4cbf543b33489e669cb))
+
 ## [1.1.2](https://github.com/speridlabs/constantia/compare/v1.1.1...v1.1.2) (2026-04-16)
 
 ### Bug Fixes
