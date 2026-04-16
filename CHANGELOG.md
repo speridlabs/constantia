@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.2](https://github.com/speridlabs/constantia/compare/v1.1.1...v1.1.2) (2026-04-16)
+
+### Bug Fixes
+
+* **express:** global middlewares now wrap route pipeline so they can catch controller errors ([b3f18b6](https://github.com/speridlabs/constantia/commit/b3f18b61663e6a0119fdf8dfa0b5d396eae56638))
+
 ## [1.1.1](https://github.com/speridlabs/constantia/compare/v1.1.0...v1.1.1) (2026-04-07)
 
 ### Bug Fixes
