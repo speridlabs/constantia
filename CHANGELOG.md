@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/speridlabs/constantia/compare/v1.1.3...v2.0.0) (2026-04-21)
+
+### ⚠ BREAKING CHANGES
+
+* **express:** IFrameworkAdapter now requires a finalize() method.
+Existing consumers that use the exported wrappers are unaffected;
+custom adapter implementations must add finalize() (can be a no-op).
+
+### Features
+
+* **express:** handle OPTIONS preflights and CORS on unmatched routes ([4b1bd48](https://github.com/speridlabs/constantia/commit/4b1bd48f202db7876d2b8cd07f6906940b6aa6b9))
+
 ## [1.1.3](https://github.com/speridlabs/constantia/compare/v1.1.2...v1.1.3) (2026-04-16)
 
 ### Bug Fixes
