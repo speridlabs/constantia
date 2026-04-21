@@ -45,6 +45,7 @@ declare global {
 
 class ExpressAdapter implements IFrameworkAdapter {
     private globalMiddlewares: Middleware[] = [];
+    private optionsRegistered: Set<string> = new Set();
 
     constructor(private readonly app: Express) {}
 
@@ -64,7 +65,10 @@ class ExpressAdapter implements IFrameworkAdapter {
 
         for (let i = 0; i < metadata.length; i++)
             this.registerController(metadata[i], controllerClasses[i]);
+    }
 
+    finalize(): void {
+        this.registerFallbackHandler();
         this.registerCatchAllErrorHandler();
     }
 
@@ -129,6 +133,45 @@ class ExpressAdapter implements IFrameworkAdapter {
                             new File(
                                 fileInput as unknown as FileInput,
                             ).cleanup();
+                }
+            },
+        );
+
+        this.ensureOptionsHandler(path);
+    }
+
+    private ensureOptionsHandler(path: string): void {
+        if (this.optionsRegistered.has(path)) return;
+        this.optionsRegistered.add(path);
+
+        this.app.options(path, async (req: Request, res: Response) => {
+            const ctx: Context = new BasicContext(req, res);
+            try {
+                await this.runPipeline(this.globalMiddlewares, ctx);
+                if (!res.headersSent) res.status(204).end();
+            } catch (err) {
+                this.handleError(res, err as Error);
+            }
+        });
+    }
+
+    private registerFallbackHandler(): void {
+        this.app.use(
+            async (req: Request, res: Response, next: NextFunction) => {
+                if (res.headersSent) return next();
+                const ctx: Context = new BasicContext(req, res);
+                try {
+                    await this.runPipeline(this.globalMiddlewares, ctx);
+                    if (res.headersSent) return;
+                    if (req.method === 'OPTIONS') return res.status(204).end();
+                    return this.handleError(
+                        res,
+                        new NotFoundError(
+                            `Cannot ${req.method} ${req.originalUrl}`,
+                        ),
+                    );
+                } catch (err) {
+                    this.handleError(res, err as Error);
                 }
             },
         );

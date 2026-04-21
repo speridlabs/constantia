@@ -21,6 +21,7 @@ const registerControllersWrapper = (controllers: ClassConstructor[]) => {
         );
 
         adapter.registerControllers([metadata, controllerClasses]);
+        adapter.finalize();
         logger.info(
             `[constantia] Registered [${controllers.length}] controllers`,
         );

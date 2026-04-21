@@ -4,6 +4,7 @@ import { type Middleware } from '../types/middleware';
 interface IFrameworkAdapter {
     registerControllers(controllers: [ControllerMetadata[], Function[]]): void;
     registerGlobalMiddlewares(middlewares: Middleware[]): void;
+    finalize(): void;
 }
 
 export * from './express';
