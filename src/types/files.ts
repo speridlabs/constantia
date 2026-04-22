@@ -12,8 +12,7 @@ export class File implements IFile {
     static beingUsed: string[] = [];
 
     constructor(file: FileInput) {
-        if (file.data !== undefined && file.data.length !== 0)
-            throw new Error('Buffer data should be an empty buffer');
+        if (file.data !== undefined && file.data.length !== 0) throw new Error('Buffer data should be an empty buffer');
         if (!file.tempFilePath) throw new Error('tempFilePath is required');
         if (file.truncated) throw new Error('File is truncated');
 

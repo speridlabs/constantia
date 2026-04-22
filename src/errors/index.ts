@@ -47,10 +47,6 @@ export class StatusCodeErrorError extends FrameworkError {
 
 export class MissingInjectionError extends FrameworkError {
     constructor(key: string) {
-        super(
-            `Context value "${key}" was not injected`,
-            500,
-            'MissingInjection',
-        );
+        super(`Context value "${key}" was not injected`, 500, 'MissingInjection');
     }
 }

@@ -8,56 +8,37 @@ class MetadataStorage {
 
     public controllers: Map<Function, ControllerMetadata> = new Map();
 
-    private pendingRoutes: Map<Function, Map<string, RouteMetadata>> =
-        new Map();
-    private pendingParameters: Map<Function, Map<string, ParameterMetadata[]>> =
-        new Map();
+    private pendingRoutes: Map<Function, Map<string, RouteMetadata>> = new Map();
+    private pendingParameters: Map<Function, Map<string, ParameterMetadata[]>> = new Map();
     private pendingStreams: Map<
         Function,
-        Map<
-            string,
-            { options: StreamOptions; streamType: 'dataStream' | 'fileStream' }
-        >
+        Map<string, { options: StreamOptions; streamType: 'dataStream' | 'fileStream' }>
     > = new Map();
 
     private pendingMiddlewares = new Map<Function, Map<string, Middleware[]>>();
-    private pendingDefaultHandlers = new Map<
-        Function,
-        { methodName: string; handler: Function }
-    >();
+    private pendingDefaultHandlers = new Map<Function, { methodName: string; handler: Function }>();
 
     public static getInstance(): MetadataStorage {
-        if (!MetadataStorage.instance)
-            MetadataStorage.instance = new MetadataStorage();
+        if (!MetadataStorage.instance) MetadataStorage.instance = new MetadataStorage();
         return MetadataStorage.instance;
     }
 
     private constructor() {}
 
-    addMiddleware(
-        target: Function,
-        methodName: string | undefined,
-        ...mw: Middleware[]
-    ) {
+    addMiddleware(target: Function, methodName: string | undefined, ...mw: Middleware[]) {
         if (this.controllers.has(target)) {
             const meta = this.controllers.get(target)!;
 
             if (methodName) {
                 const r = meta.routes.find((r) => r.methodName === methodName);
-                if (!r)
-                    throw new Error(
-                        `@Use on "${methodName}" but route not found in ${target.name}`,
-                    );
+                if (!r) throw new Error(`@Use on "${methodName}" but route not found in ${target.name}`);
                 return r.middlewares.push(...mw);
             }
 
             meta.middlewares.unshift(...mw);
 
             if (meta.defaultHandler) {
-                meta.defaultHandler.middlewares = [
-                    ...mw,
-                    ...meta.defaultHandler.middlewares,
-                ];
+                meta.defaultHandler.middlewares = [...mw, ...meta.defaultHandler.middlewares];
             }
 
             return meta.routes.forEach((r) => r.middlewares.unshift(...mw));
@@ -71,9 +52,7 @@ class MetadataStorage {
 
     addController(target: Function, path: string): void {
         if (this.controllers.has(target))
-            throw new Error(
-                `ERROR adding controller ${target.name}, controller already defined`,
-            );
+            throw new Error(`ERROR adding controller ${target.name}, controller already defined`);
 
         if (!path || path.trim() === '' || path === '/') {
             throw new Error(
@@ -97,9 +76,7 @@ class MetadataStorage {
         const routes = this.pendingRoutes.get(target);
 
         if (!defaultHandler && !routes) {
-            throw new Error(
-                `ERROR adding controller ${target.name}, no routes or default handler defined`,
-            );
+            throw new Error(`ERROR adding controller ${target.name}, no routes or default handler defined`);
         }
 
         if (defaultHandler && routes && routes.size > 0) {
@@ -110,27 +87,20 @@ class MetadataStorage {
 
         const parameters = this.pendingParameters.get(target) || new Map();
 
-        const classLevel =
-            this.pendingMiddlewares.get(target)?.get('__class') ?? [];
+        const classLevel = this.pendingMiddlewares.get(target)?.get('__class') ?? [];
 
         let finalRoutes: RouteMetadata[] = [];
 
         if (routes) {
             finalRoutes = this.sortRoutes(
                 Array.from(routes.values()).map((route) => {
-                    const perRoute =
-                        this.pendingMiddlewares
-                            .get(target)
-                            ?.get(route.methodName) ?? [];
+                    const perRoute = this.pendingMiddlewares.get(target)?.get(route.methodName) ?? [];
 
                     return {
                         ...route,
                         middlewares: [...classLevel, ...perRoute],
-                        parameters: (
-                            parameters.get(route.methodName) || []
-                        ).sort(
-                            (a: ParameterMetadata, b: ParameterMetadata) =>
-                                a.parameterIndex - b.parameterIndex,
+                        parameters: (parameters.get(route.methodName) || []).sort(
+                            (a: ParameterMetadata, b: ParameterMetadata) => a.parameterIndex - b.parameterIndex,
                         ),
                     };
                 }),
@@ -147,9 +117,7 @@ class MetadataStorage {
                       handler: defaultHandler.handler,
                       middlewares: [
                           ...classLevel,
-                          ...(this.pendingMiddlewares
-                              .get(target)
-                              ?.get(defaultHandler.methodName) ?? []),
+                          ...(this.pendingMiddlewares.get(target)?.get(defaultHandler.methodName) ?? []),
                       ],
                   }
                 : undefined,
@@ -161,33 +129,21 @@ class MetadataStorage {
         this.pendingDefaultHandlers.delete(target);
     }
 
-    addRoute(
-        target: Function,
-        metadata: Omit<RouteMetadata, 'parameters' | 'middlewares'>,
-    ): void {
+    addRoute(target: Function, metadata: Omit<RouteMetadata, 'parameters' | 'middlewares'>): void {
         if (this.controllers.has(target)) {
             throw new Error(
                 `ERROR adding ${metadata.methodName} to controller ${target.name}, controller already defined`,
             );
         }
 
-        const allowedTypes = [
-            'object',
-            'array',
-            'dataStream',
-            'fileStream',
-            'null',
-        ];
+        const allowedTypes = ['object', 'array', 'dataStream', 'fileStream', 'null'];
         if (!allowedTypes.includes(metadata.returnType.type))
             throw new Error(
                 `ERROR in ${metadata.methodName}: return type must be ${allowedTypes.join(', ')} not ${metadata.returnType.type}`,
             );
 
-        const parameters =
-            this.pendingParameters.get(target)?.get(metadata.methodName) || [];
-        const pathParams = (
-            metadata.path.match(/:[a-zA-Z_$][a-zA-Z0-9_$]*/g) || []
-        ).map((p) => p.substring(1));
+        const parameters = this.pendingParameters.get(target)?.get(metadata.methodName) || [];
+        const pathParams = (metadata.path.match(/:[a-zA-Z_$][a-zA-Z0-9_$]*/g) || []).map((p) => p.substring(1));
         const paramDecorators = parameters.filter((p) => p.type === 'param');
 
         if (pathParams.length > 0 && paramDecorators.length === 0) {
@@ -208,12 +164,8 @@ class MetadataStorage {
             );
         }
 
-        const decoratorNames = paramDecorators
-            .map((p) => p.name)
-            .filter((name): name is string => name !== undefined);
-        const missingParams = decoratorNames.filter(
-            (name) => !pathParams.includes(name),
-        );
+        const decoratorNames = paramDecorators.map((p) => p.name).filter((name): name is string => name !== undefined);
+        const missingParams = decoratorNames.filter((name) => !pathParams.includes(name));
 
         if (missingParams.length > 0) {
             throw new Error(
@@ -223,9 +175,7 @@ class MetadataStorage {
 
         const uniqueDecoratorNames = new Set(decoratorNames);
         if (uniqueDecoratorNames.size !== decoratorNames.length) {
-            throw new Error(
-                `ERROR in ${metadata.methodName}: duplicate @Param decorator names found`,
-            );
+            throw new Error(`ERROR in ${metadata.methodName}: duplicate @Param decorator names found`);
         }
 
         const routes = this.pendingRoutes.get(target) || new Map();
@@ -235,15 +185,8 @@ class MetadataStorage {
                 : `/${metadata.path}`
             : '/';
         const duplicateRoute = Array.from(routes.values()).find((route) => {
-            const existingPath = route.path
-                ? route.path.startsWith('/')
-                    ? route.path
-                    : `/${route.path}`
-                : '/';
-            return (
-                route.method === metadata.method &&
-                existingPath === normalizedPath
-            );
+            const existingPath = route.path ? (route.path.startsWith('/') ? route.path : `/${route.path}`) : '/';
+            return route.method === metadata.method && existingPath === normalizedPath;
         });
 
         if (duplicateRoute)
@@ -251,23 +194,15 @@ class MetadataStorage {
                 `ERROR adding ${metadata.methodName} in controller ${target.name}, route with method ${metadata.method} and path "${metadata.path}" already defined in ${duplicateRoute.methodName}`,
             );
 
-        const streamInfo = this.pendingStreams
-            .get(target)
-            ?.get(metadata.methodName);
+        const streamInfo = this.pendingStreams.get(target)?.get(metadata.methodName);
 
         if (streamInfo) {
-            if (
-                streamInfo.streamType === 'fileStream' &&
-                metadata.returnType.type !== 'fileStream'
-            ) {
+            if (streamInfo.streamType === 'fileStream' && metadata.returnType.type !== 'fileStream') {
                 throw new Error(
                     `ERROR in ${metadata.methodName}: Routes with file stream must return FileStreamResponse`,
                 );
             }
-            if (
-                streamInfo.streamType === 'dataStream' &&
-                metadata.returnType.type !== 'dataStream'
-            ) {
+            if (streamInfo.streamType === 'dataStream' && metadata.returnType.type !== 'dataStream') {
                 throw new Error(
                     `ERROR in ${metadata.methodName}: Routes with data stream must return DataStreamResponse`,
                 );
@@ -285,11 +220,7 @@ class MetadataStorage {
         this.pendingRoutes.set(target, routes);
     }
 
-    addParameter(
-        target: Function,
-        methodName: string,
-        parameter: ParameterMetadata,
-    ): void {
+    addParameter(target: Function, methodName: string, parameter: ParameterMetadata): void {
         if (this.controllers.has(target)) {
             throw new Error(
                 `ERROR adding parameter to ${methodName} in controller ${target.name}, controller already defined`,
@@ -302,11 +233,7 @@ class MetadataStorage {
         this.validateParameterCombination(methodName, parameter, methodParams);
 
         if (parameter.type === 'param') {
-            this.validateParamNameAgainstRoute(
-                target,
-                methodName,
-                parameter.name,
-            );
+            this.validateParamNameAgainstRoute(target, methodName, parameter.name);
         }
 
         methodParams.push(parameter);
@@ -314,15 +241,9 @@ class MetadataStorage {
         this.pendingParameters.set(target, parameters);
     }
 
-    addDefaultHandler(
-        target: Function,
-        methodName: string,
-        handler: Function,
-    ): void {
+    addDefaultHandler(target: Function, methodName: string, handler: Function): void {
         if (this.controllers.has(target)) {
-            throw new Error(
-                `ERROR adding default handler to controller ${target.name}, controller already defined`,
-            );
+            throw new Error(`ERROR adding default handler to controller ${target.name}, controller already defined`);
         }
 
         if (this.pendingDefaultHandlers.has(target)) {
@@ -339,45 +260,26 @@ class MetadataStorage {
         newParam: ParameterMetadata,
         existingParams: ParameterMetadata[],
     ): void {
-        if (
-            newParam.type === 'body' &&
-            existingParams.some((p) => p.type === 'body')
-        ) {
-            throw new Error(
-                `ERROR in ${methodName}: multiple @Body decorators are not allowed`,
-            );
+        if (newParam.type === 'body' && existingParams.some((p) => p.type === 'body')) {
+            throw new Error(`ERROR in ${methodName}: multiple @Body decorators are not allowed`);
         }
 
         if (newParam.type === 'param') {
-            const existingParam = existingParams.find(
-                (p) => p.type === 'param' && p.name === newParam.name,
-            );
+            const existingParam = existingParams.find((p) => p.type === 'param' && p.name === newParam.name);
             if (existingParam) {
-                throw new Error(
-                    `ERROR in ${methodName}: duplicate @Param decorator for parameter "${newParam.name}"`,
-                );
+                throw new Error(`ERROR in ${methodName}: duplicate @Param decorator for parameter "${newParam.name}"`);
             }
         }
 
         if (
-            (newParam.type === 'body' &&
-                existingParams.some((p) => p.type === 'query')) ||
-            (newParam.type === 'query' &&
-                existingParams.some((p) => p.type === 'body'))
+            (newParam.type === 'body' && existingParams.some((p) => p.type === 'query')) ||
+            (newParam.type === 'query' && existingParams.some((p) => p.type === 'body'))
         ) {
-            throw new Error(
-                `ERROR in ${methodName}: cannot combine @Body with @Query parameters`,
-            );
+            throw new Error(`ERROR in ${methodName}: cannot combine @Body with @Query parameters`);
         }
 
-        if (
-            !newParam.required &&
-            newParam.type !== 'query' &&
-            newParam.type !== 'file'
-        ) {
-            throw new Error(
-                `ERROR in ${methodName}: only @Query and @File parameters can be optional`,
-            );
+        if (!newParam.required && newParam.type !== 'query' && newParam.type !== 'file') {
+            throw new Error(`ERROR in ${methodName}: only @Query and @File parameters can be optional`);
         }
 
         if (newParam.type === 'query' || newParam.type === 'param') {
@@ -391,9 +293,7 @@ class MetadataStorage {
                 const isQuery = newParam.type === 'query';
                 throw new Error(
                     `ERROR in ${methodName}: @${isQuery ? 'Query' : 'Param'} parameters must be of type string or number, got ${
-                        schema && typeof schema === 'object' && 'type' in schema
-                            ? schema.type
-                            : 'invalid type'
+                        schema && typeof schema === 'object' && 'type' in schema ? schema.type : 'invalid type'
                     }`,
                 );
             }
@@ -401,17 +301,10 @@ class MetadataStorage {
 
         if (newParam.type === 'body') {
             const schema = newParam.schema;
-            if (
-                !schema ||
-                typeof schema !== 'object' ||
-                !('type' in schema) ||
-                schema.type !== 'object'
-            ) {
+            if (!schema || typeof schema !== 'object' || !('type' in schema) || schema.type !== 'object') {
                 throw new Error(
                     `ERROR in ${methodName}: @Body parameter must be of type object, got ${
-                        schema && typeof schema === 'object' && 'type' in schema
-                            ? schema.type
-                            : 'invalid type'
+                        schema && typeof schema === 'object' && 'type' in schema ? schema.type : 'invalid type'
                     }`,
                 );
             }
@@ -457,18 +350,12 @@ class MetadataStorage {
         this.pendingStreams.set(target, streams);
     }
 
-    private validateParamNameAgainstRoute(
-        target: Function,
-        methodName: string,
-        paramName?: string,
-    ): void {
+    private validateParamNameAgainstRoute(target: Function, methodName: string, paramName?: string): void {
         const routes = this.pendingRoutes.get(target);
         const route = routes?.get(methodName);
 
         if (route) {
-            const pathParams =
-                route.path.match(/:[a-zA-Z]+/g)?.map((p) => p.substring(1)) ||
-                [];
+            const pathParams = route.path.match(/:[a-zA-Z]+/g)?.map((p) => p.substring(1)) || [];
 
             if (pathParams.length === 0) {
                 throw new Error(
@@ -488,11 +375,8 @@ class MetadataStorage {
                 );
             }
 
-            const parameters =
-                this.pendingParameters.get(target)?.get(methodName) || [];
-            const existingParam = parameters.find(
-                (p) => p.type === 'param' && p.name === paramName,
-            );
+            const parameters = this.pendingParameters.get(target)?.get(methodName) || [];
+            const existingParam = parameters.find((p) => p.type === 'param' && p.name === paramName);
             if (existingParam) {
                 throw new Error(
                     `ERROR in ${methodName}: duplicate @Param("${paramName}") decorator. Each route parameter can only be used once.`,

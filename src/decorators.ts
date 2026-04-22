@@ -11,21 +11,14 @@ import { MetadataStorage, type ParameterMetadata } from './metadata';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 export const Controller =
-    (
-        path: string = '',
-        registerAutomatically: boolean = true,
-    ): ClassDecorator =>
+    (path: string = '', registerAutomatically: boolean = true): ClassDecorator =>
     (target: Function) => {
         if (!registerAutomatically) return;
         MetadataStorage.getInstance().addController(target, path);
     };
 
 const Route = (method: HttpMethod, path: string = ''): MethodDecorator => {
-    return (
-        target: object,
-        propertyKey: string | symbol,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
         try {
             const methodReturnSchema = extractMethodReturnSchema(
                 // @ts-expect-error - accessing constructor from prototype
@@ -64,11 +57,7 @@ type FileOptions = {
     maxFiles?: number;
 };
 
-export function File(
-    target: object,
-    propertyKey: string | symbol,
-    parameterIndex: number,
-): void;
+export function File(target: object, propertyKey: string | symbol, parameterIndex: number): void;
 export function File(): ParameterDecorator;
 export function File(opts: FileOptions): ParameterDecorator;
 export function File(name: string, opts: FileOptions): ParameterDecorator;
@@ -80,8 +69,7 @@ export function File(
 ): void | ParameterDecorator {
     if (
         typeof nameOrTarget === 'object' &&
-        (typeof maybeOptsOrKey === 'string' ||
-            typeof maybeOptsOrKey === 'symbol') &&
+        (typeof maybeOptsOrKey === 'string' || typeof maybeOptsOrKey === 'symbol') &&
         typeof maybeIndex === 'number'
     ) {
         const target = nameOrTarget as object;
@@ -90,23 +78,15 @@ export function File(
 
         const varName = getParameterNames(target, propertyKey)[parameterIndex];
 
-        const [, isRequiredParam] = extractParameterSchema(
-            target,
-            propertyKey,
-            parameterIndex,
-        );
+        const [, isRequiredParam] = extractParameterSchema(target, propertyKey, parameterIndex);
 
-        MetadataStorage.getInstance().addParameter(
-            target.constructor as Function,
-            propertyKey.toString(),
-            {
-                parameterIndex,
-                type: 'file',
-                name: varName,
-                schema: { type: 'file' } as SchemaType,
-                required: isRequiredParam,
-            },
-        );
+        MetadataStorage.getInstance().addParameter(target.constructor as Function, propertyKey.toString(), {
+            parameterIndex,
+            type: 'file',
+            name: varName,
+            schema: { type: 'file' } as SchemaType,
+            required: isRequiredParam,
+        });
         return;
     }
 
@@ -120,43 +100,25 @@ export function File(
         options = nameOrTarget as FileOptions | undefined;
     }
 
-    return function (
-        target: object,
-        propertyKey: string | symbol | undefined,
-        parameterIndex: number,
-    ) {
-        if (propertyKey === undefined)
-            throw new Error('PropertyKey cannot be undefined');
+    return function (target: object, propertyKey: string | symbol | undefined, parameterIndex: number) {
+        if (propertyKey === undefined) throw new Error('PropertyKey cannot be undefined');
 
-        const varName =
-            name ?? getParameterNames(target, propertyKey)[parameterIndex];
+        const varName = name ?? getParameterNames(target, propertyKey)[parameterIndex];
 
-        const [, isRequiredParam] = extractParameterSchema(
-            target,
-            propertyKey,
+        const [, isRequiredParam] = extractParameterSchema(target, propertyKey, parameterIndex);
+
+        MetadataStorage.getInstance().addParameter(target.constructor as Function, propertyKey.toString(), {
             parameterIndex,
-        );
-
-        MetadataStorage.getInstance().addParameter(
-            target.constructor as Function,
-            propertyKey.toString(),
-            {
-                parameterIndex,
-                type: 'file',
-                name: varName,
-                schema: { type: 'file' } as SchemaType,
-                required: isRequiredParam,
-                ...(options ? { options } : {}),
-            },
-        );
+            type: 'file',
+            name: varName,
+            schema: { type: 'file' } as SchemaType,
+            required: isRequiredParam,
+            ...(options ? { options } : {}),
+        });
     };
 }
 
-export function Files(
-    target: object,
-    propertyKey: string | symbol,
-    parameterIndex: number,
-): void;
+export function Files(target: object, propertyKey: string | symbol, parameterIndex: number): void;
 export function Files(): ParameterDecorator;
 export function Files(opts: FileOptions): ParameterDecorator;
 export function Files(name: string, opts?: FileOptions): ParameterDecorator;
@@ -168,32 +130,23 @@ export function Files(
 ): void | ParameterDecorator {
     if (
         typeof nameOrTarget === 'object' &&
-        (typeof maybeOptsOrKey === 'string' ||
-            typeof maybeOptsOrKey === 'symbol') &&
+        (typeof maybeOptsOrKey === 'string' || typeof maybeOptsOrKey === 'symbol') &&
         typeof maybeIndex === 'number'
     ) {
         const target = nameOrTarget as object;
         const propertyKey = maybeOptsOrKey as string | symbol;
         const parameterIndex = maybeIndex;
 
-        const [, isRequiredParam] = extractParameterSchema(
-            target,
-            propertyKey,
-            parameterIndex,
-        );
+        const [, isRequiredParam] = extractParameterSchema(target, propertyKey, parameterIndex);
 
-        MetadataStorage.getInstance().addParameter(
-            target.constructor as Function,
-            propertyKey.toString(),
-            {
-                parameterIndex,
-                type: 'file',
-                name: undefined,
-                schema: { type: 'file' } as SchemaType,
-                required: isRequiredParam,
-                options: { forceArray: true },
-            },
-        );
+        MetadataStorage.getInstance().addParameter(target.constructor as Function, propertyKey.toString(), {
+            parameterIndex,
+            type: 'file',
+            name: undefined,
+            schema: { type: 'file' } as SchemaType,
+            required: isRequiredParam,
+            options: { forceArray: true },
+        });
         return;
     }
 
@@ -208,94 +161,60 @@ export function Files(
         name = undefined;
     }
 
-    return function (
-        target: object,
-        propertyKey: string | symbol | undefined,
-        parameterIndex: number,
-    ) {
-        if (propertyKey === undefined)
-            throw new Error('PropertyKey cannot be undefined');
+    return function (target: object, propertyKey: string | symbol | undefined, parameterIndex: number) {
+        if (propertyKey === undefined) throw new Error('PropertyKey cannot be undefined');
 
-        const [, isRequiredParam] = extractParameterSchema(
-            target,
-            propertyKey,
+        const [, isRequiredParam] = extractParameterSchema(target, propertyKey, parameterIndex);
+
+        MetadataStorage.getInstance().addParameter(target.constructor as Function, propertyKey.toString(), {
             parameterIndex,
-        );
-
-        MetadataStorage.getInstance().addParameter(
-            target.constructor as Function,
-            propertyKey.toString(),
-            {
-                parameterIndex,
-                type: 'file',
-                name,
-                schema: { type: 'file' } as SchemaType,
-                required: isRequiredParam,
-                options: { ...(options ?? {}), forceArray: true },
-            },
-        );
+            type: 'file',
+            name,
+            schema: { type: 'file' } as SchemaType,
+            required: isRequiredParam,
+            options: { ...(options ?? {}), forceArray: true },
+        });
     };
 }
 
 const createParameterDecorator =
     (type: ParameterMetadata['type']) =>
     (name?: string): ParameterDecorator =>
-    (
-        target: object,
-        propertyKey: string | symbol | undefined,
-        parameterIndex: number,
-    ): void => {
-        if (propertyKey === undefined)
-            throw new Error('PropertyKey cannot be undefined');
+    (target: object, propertyKey: string | symbol | undefined, parameterIndex: number): void => {
+        if (propertyKey === undefined) throw new Error('PropertyKey cannot be undefined');
 
         let required = true;
         let schema: SchemaType;
 
         if (type === 'file')
-            throw new Error(
-                'File decorator should be used directly, not through createParameterDecorator',
-            );
+            throw new Error('File decorator should be used directly, not through createParameterDecorator');
 
         if (type === 'rawBody') {
             schema = { type: 'object' } as SchemaType;
             required = true;
         } else {
-            const [typeSchema, isRequiredParam] = extractParameterSchema(
-                target,
-                propertyKey,
-                parameterIndex,
-            );
+            const [typeSchema, isRequiredParam] = extractParameterSchema(target, propertyKey, parameterIndex);
             schema = typeSchema;
             required = isRequiredParam;
         }
 
-        if (name === undefined)
-            name = getParameterNames(target, propertyKey)[parameterIndex];
+        if (name === undefined) name = getParameterNames(target, propertyKey)[parameterIndex];
 
-        MetadataStorage.getInstance().addParameter(
-            target.constructor as Function,
-            propertyKey.toString(),
-            {
-                parameterIndex,
-                type,
-                name,
-                schema,
-                required,
-            },
-        );
+        MetadataStorage.getInstance().addParameter(target.constructor as Function, propertyKey.toString(), {
+            parameterIndex,
+            type,
+            name,
+            schema,
+            required,
+        });
     };
 
-const getParameterNames = (
-    target: object,
-    propertyKey: string | symbol,
-): string[] => {
+const getParameterNames = (target: object, propertyKey: string | symbol): string[] => {
     const method = (target as Record<string | symbol, unknown>)[propertyKey];
     if (!method || typeof method !== 'function') return [];
 
     const fnStr = method.toString().replace(/[\r\n\s]+/g, ' ');
-    const result = fnStr
-        .slice(fnStr.indexOf('(') + 1, fnStr.indexOf(')'))
-        .split(',');
+    const result = fnStr.slice(fnStr.indexOf('(') + 1, fnStr.indexOf(')')).split(',');
     return result.map((param: string) => param.trim().replace(/=.*$/, ''));
 };
 
@@ -309,23 +228,15 @@ const createParameterDecoratorFunction = (
         propertyKey?: string | symbol,
         parameterIndex?: number,
     ): ParameterDecorator | void {
-        if (
-            typeof targetOrParamName === 'string' ||
-            targetOrParamName === undefined
-        ) {
+        if (typeof targetOrParamName === 'string' || targetOrParamName === undefined) {
             return decorator(targetOrParamName);
         }
 
-        return decorator(undefined)(
-            targetOrParamName,
-            propertyKey!,
-            parameterIndex!,
-        );
+        return decorator(undefined)(targetOrParamName, propertyKey!, parameterIndex!);
     } as ParameterDecorator & ((paramName?: string) => ParameterDecorator);
 };
 
-type ParamDecoratorWithFactory = ParameterDecorator &
-    ((paramName?: string) => ParameterDecorator);
+type ParamDecoratorWithFactory = ParameterDecorator & ((paramName?: string) => ParameterDecorator);
 
 // prettier-ignore
 const Inject: ParamDecoratorWithFactory = createParameterDecoratorFunction('ctx');
@@ -343,11 +254,7 @@ const RawBody: ParamDecoratorWithFactory = createParameterDecoratorFunction('raw
 export { Body, Query, Param, Header, Inject, RawBody };
 
 export const DataStream = (options: StreamOptions = {}): MethodDecorator => {
-    return (
-        target: object,
-        propertyKey: string | symbol,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
         MetadataStorage.getInstance().addStreamInfo(
             target.constructor as Function,
             propertyKey.toString(),
@@ -359,11 +266,7 @@ export const DataStream = (options: StreamOptions = {}): MethodDecorator => {
 };
 
 export const FileStream = (options: StreamOptions): MethodDecorator => {
-    return (
-        target: object,
-        propertyKey: string | symbol,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
         MetadataStorage.getInstance().addStreamInfo(
             target.constructor as Function,
             propertyKey.toString(),
@@ -375,12 +278,9 @@ export const FileStream = (options: StreamOptions): MethodDecorator => {
 };
 
 export const Use =
-    (
-        ...mws: (Middleware | MiddlewareFactory)[]
-    ): ClassDecorator & MethodDecorator =>
+    (...mws: (Middleware | MiddlewareFactory)[]): ClassDecorator & MethodDecorator =>
     (target: Function | object, propertyKey?: string | symbol) => {
-        const owner =
-            propertyKey === undefined ? target : (target as object).constructor;
+        const owner = propertyKey === undefined ? target : (target as object).constructor;
 
         const resolvedMiddlewares: Middleware[] = mws.map((mw) => {
             if (typeof mw === 'function') {
@@ -392,19 +292,11 @@ export const Use =
             return mw as Middleware;
         });
 
-        MetadataStorage.getInstance().addMiddleware(
-            owner as Function,
-            propertyKey?.toString(),
-            ...resolvedMiddlewares,
-        );
+        MetadataStorage.getInstance().addMiddleware(owner as Function, propertyKey?.toString(), ...resolvedMiddlewares);
     };
 
 export const DefaultHandler = (): MethodDecorator => {
-    return (
-        target: object,
-        propertyKey: string | symbol,
-        descriptor: PropertyDescriptor,
-    ) => {
+    return (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
         MetadataStorage.getInstance().addDefaultHandler(
             target.constructor as Function,
             propertyKey.toString(),

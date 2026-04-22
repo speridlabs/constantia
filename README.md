@@ -11,17 +11,13 @@ class UserController {
     }
 
     @Get('/:id')
-    async getById(
-        @Param('id') id: string,
-    ): Promise<{ id: string; name: string }> {
+    async getById(@Param('id') id: string): Promise<{ id: string; name: string }> {
         if (id === '0') throw new BadRequestError('Invalid user ID');
         return { id, name: 'Alice' };
     }
 
     @Post()
-    async create(
-        @Body() body: { name: string; email: string },
-    ): Promise<{ id: string }> {
+    async create(@Body() body: { name: string; email: string }): Promise<{ id: string }> {
         return { id: '42' };
     }
 }
@@ -107,17 +103,13 @@ class UserController {
     }
 
     @Get('/:id')
-    async getById(
-        @Param('id') id: string,
-    ): Promise<{ id: string; name: string }> {
+    async getById(@Param('id') id: string): Promise<{ id: string; name: string }> {
         if (id === '0') throw new BadRequestError('Invalid user ID');
         return { id, name: 'Alice' };
     }
 
     @Post()
-    async create(
-        @Body() body: { name: string; email: string },
-    ): Promise<{ id: string }> {
+    async create(@Body() body: { name: string; email: string }): Promise<{ id: string }> {
         return { id: '42' };
     }
 

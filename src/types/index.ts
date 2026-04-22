@@ -1,41 +1,28 @@
-import {
-    ReflectionClass,
-    ReflectionKind,
-    ReflectionMethod,
-    type Type,
-} from '@deepkit/type';
+import { ReflectionClass, ReflectionKind, ReflectionMethod, type Type } from '@deepkit/type';
 
 const extractMethodReturnSchema = (
     objectClass: Parameters<typeof ReflectionClass.from>[0],
     methodName: string | symbol,
 ): SchemaType => {
     const reflection = ReflectionClass.from(objectClass);
-    const methodReflection: ReflectionMethod | undefined =
-        reflection.getMethod(methodName);
+    const methodReflection: ReflectionMethod | undefined = reflection.getMethod(methodName);
 
-    if (!methodReflection)
-        throw new Error(
-            `Method ${String(methodName)} not found in reflection.`,
-        );
+    if (!methodReflection) throw new Error(`Method ${String(methodName)} not found in reflection.`);
 
     const returnType = methodReflection.getReturnType();
 
     return reflectionTypeToSchema(returnType);
 };
 
-const reflectionToSchema = (
-    ref: ReturnType<typeof ReflectionClass.from> | Type,
-): SchemaType => {
+const reflectionToSchema = (ref: ReturnType<typeof ReflectionClass.from> | Type): SchemaType => {
     if ('kind' in ref) return reflectionTypeToSchema(ref);
 
     const props: Record<string, SchemaType> = {};
     const required: string[] = [];
 
     for (const p of ref.getProperties()) {
-        if (p.name === 'ISASTREAMFILEONLYFORFRAMEWORK')
-            return { type: 'fileStream' };
-        if (p.name === 'ISASTREAMDATAONLYFORFRAMEWORK')
-            return { type: 'dataStream' };
+        if (p.name === 'ISASTREAMFILEONLYFORFRAMEWORK') return { type: 'fileStream' };
+        if (p.name === 'ISASTREAMDATAONLYFORFRAMEWORK') return { type: 'dataStream' };
 
         const propSchema = reflectionTypeToSchema(p.type);
         if (propSchema !== undefined) {
@@ -56,17 +43,11 @@ const reflectionToSchema = (
 const processingTypes = new WeakSet<object>();
 
 const reflectionTypeToSchema = (t: Type): SchemaType => {
-    if (
-        (t.kind === ReflectionKind.objectLiteral ||
-            t.kind === ReflectionKind.class) &&
-        processingTypes.has(t)
-    ) {
+    if ((t.kind === ReflectionKind.objectLiteral || t.kind === ReflectionKind.class) && processingTypes.has(t)) {
         return { type: 'object' };
     }
 
-    const shouldTrack =
-        t.kind === ReflectionKind.objectLiteral ||
-        t.kind === ReflectionKind.class;
+    const shouldTrack = t.kind === ReflectionKind.objectLiteral || t.kind === ReflectionKind.class;
     if (shouldTrack) processingTypes.add(t);
 
     try {
@@ -87,10 +68,7 @@ const reflectionTypeToSchema = (t: Type): SchemaType => {
                 const schema = reflectionToSchema(nestedRef);
 
                 if (schema.type === 'object') {
-                    const indexSigs = t.types.filter(
-                        (member) =>
-                            member.kind === ReflectionKind.indexSignature,
-                    );
+                    const indexSigs = t.types.filter((member) => member.kind === ReflectionKind.indexSignature);
                     if (indexSigs.length > 0) {
                         schema.additionalProperties = reflectionTypeToSchema(
                             (
@@ -116,17 +94,13 @@ const reflectionTypeToSchema = (t: Type): SchemaType => {
             case ReflectionKind.promise:
                 return reflectionTypeToSchema(t.type);
             case ReflectionKind.union: {
-                const types = t.types.map((subType) =>
-                    reflectionTypeToSchema(subType),
-                );
+                const types = t.types.map((subType) => reflectionTypeToSchema(subType));
                 return { oneOf: types, type: 'union' };
             }
             case ReflectionKind.literal:
                 return { type: 'string' };
             case ReflectionKind.tuple: {
-                const elements = t.types.map((elementType) =>
-                    reflectionTypeToSchema(elementType),
-                );
+                const elements = t.types.map((elementType) => reflectionTypeToSchema(elementType));
                 return {
                     type: 'tuple',
                     elements: elements,
@@ -145,10 +119,7 @@ const reflectionTypeToSchema = (t: Type): SchemaType => {
             case ReflectionKind.object:
                 return { type: 'object' };
             case ReflectionKind.unknown:
-                if (
-                    t.parent?.kind === ReflectionKind.property ||
-                    t.parent?.kind === ReflectionKind.propertySignature
-                ) {
+                if (t.parent?.kind === ReflectionKind.property || t.parent?.kind === ReflectionKind.propertySignature) {
                     return undefined as unknown as SchemaType;
                 }
                 return { type: 'object' };
@@ -200,16 +171,12 @@ const extractParameterSchema = (
     const methodReflection = reflection.getMethod(propertyKey);
 
     if (!methodReflection) {
-        throw new Error(
-            `Method ${String(propertyKey)} not found in reflection`,
-        );
+        throw new Error(`Method ${String(propertyKey)} not found in reflection`);
     }
 
     const parameters = methodReflection.parameters;
     if (!parameters || parameters.length <= parameterIndex) {
-        throw new Error(
-            `Parameter at index ${parameterIndex} not found in method ${String(propertyKey)}`,
-        );
+        throw new Error(`Parameter at index ${parameterIndex} not found in method ${String(propertyKey)}`);
     }
 
     const parameter = parameters[parameterIndex];
@@ -222,12 +189,7 @@ const extractParameterSchema = (
     return [reflectionTypeToSchema(parameter.type), !parameter.isOptional()];
 };
 
-export {
-    extractMethodReturnSchema,
-    reflectionToSchema,
-    reflectionTypeToSchema,
-    extractParameterSchema,
-};
+export { extractMethodReturnSchema, reflectionToSchema, reflectionTypeToSchema, extractParameterSchema };
 
 export * from './files';
 export * from './stream';

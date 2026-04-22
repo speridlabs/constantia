@@ -48,10 +48,7 @@ export const schemaTypeToOpenAPISchema = (
             };
 
         case 'array': {
-            const itemsSchema = schemaTypeToOpenAPISchema(
-                schemaType.items,
-                components,
-            );
+            const itemsSchema = schemaTypeToOpenAPISchema(schemaType.items, components);
             return { type: 'array', items: itemsSchema || {} };
         }
 
@@ -60,13 +57,8 @@ export const schemaTypeToOpenAPISchema = (
                 [key: string]: SchemaObject | ReferenceObject;
             } = {};
             if (schemaType.properties) {
-                for (const [key, propSchema] of Object.entries(
-                    schemaType.properties,
-                )) {
-                    const openApiPropSchema = schemaTypeToOpenAPISchema(
-                        propSchema,
-                        components,
-                    );
+                for (const [key, propSchema] of Object.entries(schemaType.properties)) {
+                    const openApiPropSchema = schemaTypeToOpenAPISchema(propSchema, components);
                     if (openApiPropSchema) {
                         properties[key] = openApiPropSchema;
                     }
@@ -79,27 +71,17 @@ export const schemaTypeToOpenAPISchema = (
             };
             if (schemaType.additionalProperties) {
                 objectSchema.additionalProperties =
-                    schemaTypeToOpenAPISchema(
-                        schemaType.additionalProperties,
-                        components,
-                    ) || {};
+                    schemaTypeToOpenAPISchema(schemaType.additionalProperties, components) || {};
             }
             return objectSchema;
         }
 
         case 'union': {
-            const nonNullTypes = schemaType.oneOf?.filter(
-                (t) => t.type !== 'null' && t.type !== 'void',
-            );
-            const hasNull = schemaType.oneOf?.some(
-                (t) => t.type === 'null' || t.type === 'void',
-            );
+            const nonNullTypes = schemaType.oneOf?.filter((t) => t.type !== 'null' && t.type !== 'void');
+            const hasNull = schemaType.oneOf?.some((t) => t.type === 'null' || t.type === 'void');
 
             if (nonNullTypes?.length === 1) {
-                const baseSchema = schemaTypeToOpenAPISchema(
-                    nonNullTypes[0],
-                    components,
-                ) as SchemaObject;
+                const baseSchema = schemaTypeToOpenAPISchema(nonNullTypes[0], components) as SchemaObject;
                 if (baseSchema && hasNull) {
                     baseSchema.nullable = true;
                 }
@@ -107,13 +89,8 @@ export const schemaTypeToOpenAPISchema = (
             } else if (schemaType.oneOf) {
                 return {
                     oneOf: schemaType.oneOf
-                        .map((subSchema) =>
-                            schemaTypeToOpenAPISchema(subSchema, components),
-                        )
-                        .filter((s) => s !== undefined) as (
-                        | SchemaObject
-                        | ReferenceObject
-                    )[],
+                        .map((subSchema) => schemaTypeToOpenAPISchema(subSchema, components))
+                        .filter((s) => s !== undefined) as (SchemaObject | ReferenceObject)[],
                 };
             }
             return {};
@@ -129,13 +106,9 @@ export const schemaTypeToOpenAPISchema = (
                 };
             }
 
-            const elementSchemas = schemaType.elements.map((el) =>
-                schemaTypeToOpenAPISchema(el, components),
-            );
+            const elementSchemas = schemaType.elements.map((el) => schemaTypeToOpenAPISchema(el, components));
 
-            const allSameType = schemaType.elements.every(
-                (el) => el.type === schemaType.elements![0].type,
-            );
+            const allSameType = schemaType.elements.every((el) => el.type === schemaType.elements![0].type);
 
             if (allSameType && schemaType.elements.length > 0) {
                 return {
@@ -157,9 +130,7 @@ export const schemaTypeToOpenAPISchema = (
         }
 
         default:
-            logger.warn(
-                `OpenAPI: Unsupported schema type "${(schemaType as SchemaType).type}" encountered.`,
-            );
+            logger.warn(`OpenAPI: Unsupported schema type "${(schemaType as SchemaType).type}" encountered.`);
             return {};
     }
 };
@@ -189,16 +160,12 @@ export const createOpenAPIParameters = (
             case 'rawBody':
                 continue;
             default:
-                logger.warn(
-                    `OpenAPI: Unsupported parameter type "${param.type}" for parameter "${param.name}".`,
-                );
+                logger.warn(`OpenAPI: Unsupported parameter type "${param.type}" for parameter "${param.name}".`);
                 continue;
         }
 
         if (!param.name) {
-            logger.warn(
-                `OpenAPI: Parameter of type "${param.type}" is missing a name.`,
-            );
+            logger.warn(`OpenAPI: Parameter of type "${param.type}" is missing a name.`);
             continue;
         }
 
@@ -231,15 +198,13 @@ export const createOpenAPIRequestBody = (
 
     if (bodyParam) {
         requestBody.content['application/json'] = {
-            schema:
-                schemaTypeToOpenAPISchema(bodyParam.schema, components) || {},
+            schema: schemaTypeToOpenAPISchema(bodyParam.schema, components) || {},
         };
         requestBody.required = bodyParam.required;
     }
 
     if (fileParams.length > 0) {
-        const properties: { [key: string]: SchemaObject | ReferenceObject } =
-            {};
+        const properties: { [key: string]: SchemaObject | ReferenceObject } = {};
         const requiredFields: string[] = [];
 
         let hasUnnamedFileArray = false;
@@ -267,25 +232,20 @@ export const createOpenAPIRequestBody = (
                 items: { type: 'string', format: 'binary' },
                 description: 'One or more files uploaded.',
             };
-        } else if (
-            Object.keys(properties).length === 0 &&
-            fileParams.length > 0
-        ) {
+        } else if (Object.keys(properties).length === 0 && fileParams.length > 0) {
             properties['file'] = {
                 type: 'string',
                 format: 'binary',
                 description: 'A file upload.',
             };
-            if (fileParams.some((fp) => fp.required))
-                requiredFields.push('file');
+            if (fileParams.some((fp) => fp.required)) requiredFields.push('file');
         }
 
         requestBody.content['multipart/form-data'] = {
             schema: {
                 type: 'object',
                 properties: properties,
-                required:
-                    requiredFields.length > 0 ? requiredFields : undefined,
+                required: requiredFields.length > 0 ? requiredFields : undefined,
             },
         };
         requestBody.required = true;
@@ -294,10 +254,7 @@ export const createOpenAPIRequestBody = (
     return requestBody;
 };
 
-export const createOpenAPIResponses = (
-    route: RouteMetadata,
-    components: ComponentsObject,
-): ResponsesObject => {
+export const createOpenAPIResponses = (route: RouteMetadata, components: ComponentsObject): ResponsesObject => {
     const responses: ResponsesObject = {};
 
     if (!components.schemas) components.schemas = {};
@@ -309,8 +266,7 @@ export const createOpenAPIResponses = (
             properties: {
                 error: {
                     type: 'string',
-                    description:
-                        'Short error identifier (e.g., BadRequest, NotFound, Unauthorized)',
+                    description: 'Short error identifier (e.g., BadRequest, NotFound, Unauthorized)',
                 },
                 message: {
                     type: 'string',
@@ -333,8 +289,7 @@ export const createOpenAPIResponses = (
 
     if (!components.responses['Unauthorized']) {
         components.responses['Unauthorized'] = {
-            description:
-                'Unauthorized (e.g., missing or invalid authentication credentials)',
+            description: 'Unauthorized (e.g., missing or invalid authentication credentials)',
             content: { 'application/json': { schema: errorResponseRef } },
         };
     }
@@ -348,16 +303,14 @@ export const createOpenAPIResponses = (
 
     if (!components.responses['InternalError']) {
         components.responses['InternalError'] = {
-            description:
-                'Internal Server Error (an unexpected condition occurred)',
+            description: 'Internal Server Error (an unexpected condition occurred)',
             content: { 'application/json': { schema: errorResponseRef } },
         };
     }
 
     if (!components.responses['DefaultError']) {
         components.responses['DefaultError'] = {
-            description:
-                'An unexpected error occurred (includes errors specified by StatusCodeErrorError)',
+            description: 'An unexpected error occurred (includes errors specified by StatusCodeErrorError)',
             content: { 'application/json': { schema: errorResponseRef } },
         };
     }
@@ -367,16 +320,12 @@ export const createOpenAPIResponses = (
         description: 'Successful operation',
     };
 
-    const returnSchema = schemaTypeToOpenAPISchema(
-        route.returnType,
-        components,
-    );
+    const returnSchema = schemaTypeToOpenAPISchema(route.returnType, components);
 
     const specifiedContentType = route.stream?.options?.contentType;
 
     if (route.stream?.streamType === 'fileStream') {
-        const responseContentType =
-            specifiedContentType || 'application/octet-stream';
+        const responseContentType = specifiedContentType || 'application/octet-stream';
         successResponse.description = 'File stream';
         successResponse.content = {
             [responseContentType]: {
@@ -390,8 +339,7 @@ export const createOpenAPIResponses = (
             },
             'Content-Range': {
                 schema: { type: 'string' },
-                description:
-                    'Indicates the part of the file returned for partial content',
+                description: 'Indicates the part of the file returned for partial content',
             },
             'Content-Length': {
                 schema: { type: 'string' },
@@ -399,13 +347,11 @@ export const createOpenAPIResponses = (
             },
             'Content-Disposition': {
                 schema: { type: 'string' },
-                description:
-                    'Specifies presentation (inline/attachment) and filename',
+                description: 'Specifies presentation (inline/attachment) and filename',
             },
         };
     } else if (route.stream?.streamType === 'dataStream') {
-        const responseContentType =
-            specifiedContentType || 'application/x-ndjson';
+        const responseContentType = specifiedContentType || 'application/x-ndjson';
         successResponse.description = 'Data stream';
         successResponse.content = {
             [responseContentType]: {
@@ -415,10 +361,7 @@ export const createOpenAPIResponses = (
                 },
             },
         };
-    } else if (
-        route.returnType.type === 'void' ||
-        route.returnType.type === 'null'
-    ) {
+    } else if (route.returnType.type === 'void' || route.returnType.type === 'null') {
         successStatusCode = '204';
         successResponse.description = 'Success (No Content)';
     } else if (returnSchema) {
