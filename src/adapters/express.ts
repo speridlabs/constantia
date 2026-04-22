@@ -3,32 +3,17 @@ import fileupload from 'express-fileupload';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type {
-    Express,
-    Request,
-    Response,
-    RequestHandler,
-    NextFunction,
-} from 'express';
+import type { Express, Request, Response, RequestHandler, NextFunction } from 'express';
 
 import { logger } from '../logger';
 
-import type {
-    RouteMetadata,
-    ParameterMetadata,
-    ControllerMetadata,
-} from '../metadata';
+import type { RouteMetadata, ParameterMetadata, ControllerMetadata } from '../metadata';
 import { type IFrameworkAdapter } from './index';
 import { File, FileInput } from '../types/files';
-import { BasicContext, type Context } from '../context';
+import { BasicContext, type Context, getRequestContext, requestStore } from '../context';
 import { Middleware } from '../types/middleware';
 
-import {
-    BadRequestError,
-    FrameworkError,
-    MissingInjectionError,
-    NotFoundError,
-} from '../errors';
+import { BadRequestError, FrameworkError, MissingInjectionError, NotFoundError } from '../errors';
 import { validateAndTransform } from './validation';
 import { DataStreamResponse, FileStreamResponse } from '../types';
 import * as os from 'os';
@@ -54,17 +39,11 @@ class ExpressAdapter implements IFrameworkAdapter {
         this.globalMiddlewares = middlewares;
     }
 
-    registerControllers([metadata, controllerClasses]: [
-        ControllerMetadata[],
-        Function[],
-    ]): void {
+    registerControllers([metadata, controllerClasses]: [ControllerMetadata[], Function[]]): void {
         if (metadata.length !== controllerClasses.length)
-            throw new Error(
-                'Metadata and controller classes arrays must have the same length',
-            );
+            throw new Error('Metadata and controller classes arrays must have the same length');
 
-        for (let i = 0; i < metadata.length; i++)
-            this.registerController(metadata[i], controllerClasses[i]);
+        for (let i = 0; i < metadata.length; i++) this.registerController(metadata[i], controllerClasses[i]);
     }
 
     finalize(): void {
@@ -72,38 +51,20 @@ class ExpressAdapter implements IFrameworkAdapter {
         this.registerCatchAllErrorHandler();
     }
 
-    private registerController(
-        controller: ControllerMetadata,
-        controllerClass: Function,
-    ): void {
+    private registerController(controller: ControllerMetadata, controllerClass: Function): void {
         const controllerInstance = new (controllerClass as new () => unknown)();
 
         if (controller.defaultHandler)
-            return this.registerDefaultHandler(
-                controller.path,
-                controller.defaultHandler,
-                controllerInstance,
-            );
+            return this.registerDefaultHandler(controller.path, controller.defaultHandler, controllerInstance);
 
-        for (const route of controller.routes)
-            this.registerRoute(controller.path, route, controllerInstance);
+        for (const route of controller.routes) this.registerRoute(controller.path, route, controllerInstance);
     }
 
-    private registerRoute(
-        basePath: string,
-        route: RouteMetadata,
-        controllerInstance: unknown,
-    ): void {
+    private registerRoute(basePath: string, route: RouteMetadata, controllerInstance: unknown): void {
         const path = `${basePath}${route.path}`;
-        const method = route.method.toLowerCase() as
-            | 'get'
-            | 'post'
-            | 'put'
-            | 'delete'
-            | 'patch';
+        const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'delete' | 'patch';
 
-        const expressMiddlewares: RequestHandler[] =
-            this.buildNativeMiddlewares(route);
+        const expressMiddlewares: RequestHandler[] = this.buildNativeMiddlewares(route);
 
         const frameworkPipeline: Middleware[] = [
             ...this.globalMiddlewares,
@@ -111,16 +72,17 @@ class ExpressAdapter implements IFrameworkAdapter {
             this.makeCoreHandler(route, controllerInstance),
         ];
 
-        this.app[method](
-            path,
-            ...expressMiddlewares,
-            async (req: Request, res: Response) => {
-                const ctx: Context = new BasicContext(req, res);
+        this.app[method](path, ...expressMiddlewares, async (req: Request, res: Response) => {
+            const ctx: Context = new BasicContext(req, res);
 
+            const requestId = crypto.randomUUID();
+            ctx.set('x-request-id', requestId);
+            res.setHeader('requestId', requestId);
+
+            await requestStore.run(ctx, async () => {
                 try {
                     await this.runPipeline(frameworkPipeline, ctx);
-                    if (!res.headersSent && !route.stream)
-                        res.status(204).end();
+                    if (!res.headersSent && !route.stream) res.status(204).end();
                 } catch (err) {
                     this.handleError(res, err as Error);
                 } finally {
@@ -130,12 +92,10 @@ class ExpressAdapter implements IFrameworkAdapter {
 
                     if (req.files)
                         for (const fileInput of Object.values(req.files).flat())
-                            new File(
-                                fileInput as unknown as FileInput,
-                            ).cleanup();
+                            new File(fileInput as unknown as FileInput).cleanup();
                 }
-            },
-        );
+            });
+        });
 
         this.ensureOptionsHandler(path);
     }
@@ -156,25 +116,18 @@ class ExpressAdapter implements IFrameworkAdapter {
     }
 
     private registerFallbackHandler(): void {
-        this.app.use(
-            async (req: Request, res: Response, next: NextFunction) => {
-                if (res.headersSent) return next();
-                const ctx: Context = new BasicContext(req, res);
-                try {
-                    await this.runPipeline(this.globalMiddlewares, ctx);
-                    if (res.headersSent) return;
-                    if (req.method === 'OPTIONS') return res.status(204).end();
-                    return this.handleError(
-                        res,
-                        new NotFoundError(
-                            `Cannot ${req.method} ${req.originalUrl}`,
-                        ),
-                    );
-                } catch (err) {
-                    this.handleError(res, err as Error);
-                }
-            },
-        );
+        this.app.use(async (req: Request, res: Response, next: NextFunction) => {
+            if (res.headersSent) return next();
+            const ctx: Context = new BasicContext(req, res);
+            try {
+                await this.runPipeline(this.globalMiddlewares, ctx);
+                if (res.headersSent) return;
+                if (req.method === 'OPTIONS') return res.status(204).end();
+                return this.handleError(res, new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`));
+            } catch (err) {
+                this.handleError(res, err as Error);
+            }
+        });
     }
 
     private wrapMiddleware(mw: RequestHandler): RequestHandler {
@@ -189,9 +142,7 @@ class ExpressAdapter implements IFrameworkAdapter {
     private buildNativeMiddlewares(route: RouteMetadata): RequestHandler[] {
         const mws: RequestHandler[] = [];
 
-        const hasRawBodyParam = route.parameters.some(
-            (p) => p.type === 'rawBody',
-        );
+        const hasRawBodyParam = route.parameters.some((p) => p.type === 'rawBody');
 
         if (hasRawBodyParam) {
             mws.push(
@@ -213,16 +164,11 @@ class ExpressAdapter implements IFrameworkAdapter {
             const DEFAULT_FILESIZE_LIMIT = 1 * 1024 * 1024 * 1024;
 
             const maxFileLimit =
-                fileParams
-                    .map((p) => p.options?.maxFileSize ?? 0)
-                    .reduce((a, b) => Math.max(a, b), 0) ||
+                fileParams.map((p) => p.options?.maxFileSize ?? 0).reduce((a, b) => Math.max(a, b), 0) ||
                 DEFAULT_FILESIZE_LIMIT;
 
             const totalMaxFiles = fileParams
-                .map(
-                    (p) =>
-                        p.options?.maxFiles ?? (p.options?.forceArray ? 10 : 1),
-                )
+                .map((p) => p.options?.maxFiles ?? (p.options?.forceArray ? 10 : 1))
                 .reduce((a, b) => a + b, 0);
 
             const tmp = os.tmpdir();
@@ -271,9 +217,7 @@ class ExpressAdapter implements IFrameworkAdapter {
                     next();
                 });
 
-                ws.on('error', () =>
-                    next(new Error('Failed to buffer raw body')),
-                );
+                ws.on('error', () => next(new Error('Failed to buffer raw body')));
             });
         }
 
@@ -292,10 +236,7 @@ class ExpressAdapter implements IFrameworkAdapter {
         await dispatch(0);
     }
 
-    private makeCoreHandler(
-        route: RouteMetadata,
-        controller: unknown,
-    ): Middleware {
+    private makeCoreHandler(route: RouteMetadata, controller: unknown): Middleware {
         return async (ctx, next) => {
             const req = ctx.request as Request;
             const res = ctx.response as Response;
@@ -305,8 +246,7 @@ class ExpressAdapter implements IFrameworkAdapter {
 
             if (res.headersSent) return await next();
 
-            if (route.stream)
-                return await this.handleStreamResponse(result, route, req, res);
+            if (route.stream) return await this.handleStreamResponse(result, route, req, res);
 
             res.setHeader('Content-Type', 'application/json');
             res.status(result ? 200 : 204);
@@ -334,7 +274,12 @@ class ExpressAdapter implements IFrameworkAdapter {
             });
         }
 
-        logger.error(`Internal Server Error: ${err.message}`, err);
+        const context = getRequestContext();
+        logger.error(`Internal Server Error: ${err.message}`, err, {
+            requestId: context?.get('requestId'),
+            method: context?.request.method,
+            path: context?.request.url,
+        });
 
         if (res.headersSent) return;
         res.status(500).json({
@@ -369,19 +314,13 @@ class ExpressAdapter implements IFrameworkAdapter {
 
             stream.on('error', (err: NodeJS.ErrnoException) => {
                 if (res.headersSent) {
-                    logger.error(
-                        `Stream error after headers sent: ${err.message}`,
-                        err,
-                    );
+                    logger.error(`Stream error after headers sent: ${err.message}`, err);
                     res.end();
                     return;
                 }
 
                 if (err.code === 'ENOENT') {
-                    this.handleError(
-                        res,
-                        new NotFoundError('File not found during streaming'),
-                    );
+                    this.handleError(res, new NotFoundError('File not found during streaming'));
                 } else {
                     this.handleError(res, err);
                 }
@@ -397,8 +336,7 @@ class ExpressAdapter implements IFrameworkAdapter {
             }
 
             if (route.stream.options.downloadName || filename) {
-                const contentDisposition =
-                    route.stream.options.contentDisposition || 'attachment';
+                const contentDisposition = route.stream.options.contentDisposition || 'attachment';
                 res.setHeader(
                     'Content-Disposition',
                     `${contentDisposition}; filename="${route.stream.options.downloadName || filename}"`,
@@ -409,18 +347,13 @@ class ExpressAdapter implements IFrameworkAdapter {
             if (range && contentLength) {
                 const parts = range.replace(/bytes=/, '').split('-');
                 const start = parseInt(parts[0], 10);
-                const end = parts[1]
-                    ? parseInt(parts[1], 10)
-                    : contentLength - 1;
+                const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
 
                 if (start >= 0 && end < contentLength) {
                     const chunkSize = end - start + 1;
                     res.status(206);
                     res.setHeader('Accept-Ranges', 'bytes');
-                    res.setHeader(
-                        'Content-Range',
-                        `bytes ${start}-${end}/${contentLength}`,
-                    );
+                    res.setHeader('Content-Range', `bytes ${start}-${end}/${contentLength}`);
                     res.setHeader('Content-Length', chunkSize);
                     // @ts-expect-error - pipe with range options
                     stream.pipe(res, { start, end });
@@ -436,48 +369,31 @@ class ExpressAdapter implements IFrameworkAdapter {
         }
     }
 
-    private extractParameters(
-        req: Request,
-        parameters: ParameterMetadata[],
-        ctx: Context,
-    ): unknown[] {
-        const requiredNamedFileParams = parameters.filter(
-            (p) => p.type === 'file' && p.name && p.required,
-        );
+    private extractParameters(req: Request, parameters: ParameterMetadata[], ctx: Context): unknown[] {
+        const requiredNamedFileParams = parameters.filter((p) => p.type === 'file' && p.name && p.required);
 
         if (requiredNamedFileParams.length > 0) {
             const missing = requiredNamedFileParams.filter(
-                (p) =>
-                    !(
-                        req.files &&
-                        (req.files as Record<string, unknown>)[p.name!]
-                    ),
+                (p) => !(req.files && (req.files as Record<string, unknown>)[p.name!]),
             );
             if (missing.length > 0) {
                 throw new BadRequestError(
-                    `Missing file parameter${missing.length > 1 ? 's' : ''}: ` +
-                        missing.map((p) => p.name).join(', '),
+                    `Missing file parameter${missing.length > 1 ? 's' : ''}: ` + missing.map((p) => p.name).join(', '),
                 );
             }
         }
 
         const namedFiles: Record<string, File | File[]> = {};
         if (req.files) {
-            for (const p of parameters.filter(
-                (p) => p.type === 'file' && p.name,
-            )) {
+            for (const p of parameters.filter((p) => p.type === 'file' && p.name)) {
                 const entry = (req.files as Record<string, unknown>)[p.name!];
                 if (!entry) continue;
 
                 if (Array.isArray(entry)) {
                     if (p.options?.forceArray) {
-                        namedFiles[p.name!] = entry.map(
-                            (f: unknown) => new File(f as FileInput),
-                        );
+                        namedFiles[p.name!] = entry.map((f: unknown) => new File(f as FileInput));
                     } else {
-                        throw new BadRequestError(
-                            `Multiple files found for "${p.name}"`,
-                        );
+                        throw new BadRequestError(`Multiple files found for "${p.name}"`);
                     }
                 } else {
                     if (p.options?.forceArray) {
@@ -490,11 +406,7 @@ class ExpressAdapter implements IFrameworkAdapter {
                 delete (req.files as Record<string, unknown>)[p.name!];
             }
 
-            if (
-                req.files &&
-                Object.keys(req.files as Record<string, unknown>).length === 0
-            )
-                req.files = undefined;
+            if (req.files && Object.keys(req.files as Record<string, unknown>).length === 0) req.files = undefined;
         }
 
         return parameters.map((param) => {
@@ -518,33 +430,23 @@ class ExpressAdapter implements IFrameworkAdapter {
                             const stored = namedFiles[param.name];
 
                             if (!param.required && !stored) {
-                                value = param.options?.forceArray
-                                    ? []
-                                    : undefined;
+                                value = param.options?.forceArray ? [] : undefined;
                                 break;
                             }
 
                             if (param.options?.forceArray) {
-                                const arr = Array.isArray(stored)
-                                    ? stored
-                                    : [stored];
+                                const arr = Array.isArray(stored) ? stored : [stored];
                                 if (arr.length === 0 && param.required)
-                                    throw new BadRequestError(
-                                        `File "${param.name}" not found`,
-                                    );
+                                    throw new BadRequestError(`File "${param.name}" not found`);
                                 value = arr;
                                 req.uploadedFiles = req.uploadedFiles ?? [];
                                 req.uploadedFiles.push(...arr);
                             } else {
                                 if (!stored && param.required)
-                                    throw new BadRequestError(
-                                        `File "${param.name}" not found`,
-                                    );
+                                    throw new BadRequestError(`File "${param.name}" not found`);
 
                                 if (stored) {
-                                    const singleFile = Array.isArray(stored)
-                                        ? stored[0]
-                                        : stored;
+                                    const singleFile = Array.isArray(stored) ? stored[0] : stored;
                                     value = singleFile;
                                     req.uploadedFiles = req.uploadedFiles ?? [];
                                     req.uploadedFiles.push(singleFile);
@@ -564,13 +466,9 @@ class ExpressAdapter implements IFrameworkAdapter {
 
                             if (!req.files) {
                                 if (param.required) {
-                                    throw new BadRequestError(
-                                        'No files were uploaded',
-                                    );
+                                    throw new BadRequestError('No files were uploaded');
                                 } else {
-                                    value = param.options?.forceArray
-                                        ? []
-                                        : undefined;
+                                    value = param.options?.forceArray ? [] : undefined;
                                     break;
                                 }
                             }
@@ -581,19 +479,13 @@ class ExpressAdapter implements IFrameworkAdapter {
 
                             if (arr.length === 0) {
                                 if (param.required) {
-                                    throw new BadRequestError(
-                                        'No files uploaded',
-                                    );
+                                    throw new BadRequestError('No files uploaded');
                                 } else {
-                                    value = param.options?.forceArray
-                                        ? []
-                                        : undefined;
+                                    value = param.options?.forceArray ? [] : undefined;
                                     break;
                                 }
                             }
-                            const files = arr.map(
-                                (f: unknown) => new File(f as FileInput),
-                            );
+                            const files = arr.map((f: unknown) => new File(f as FileInput));
                             value = files;
                             req.files = undefined;
                             req.uploadedFiles = req.uploadedFiles ?? [];
@@ -608,37 +500,26 @@ class ExpressAdapter implements IFrameworkAdapter {
                             try {
                                 value = JSON.parse(value);
                             } catch {
-                                throw new BadRequestError(
-                                    'Invalid JSON in request body',
-                                );
+                                throw new BadRequestError('Invalid JSON in request body');
                             }
                         } else if (value && typeof value === 'object') {
-                            value = this.parseNestedFormFields(
-                                value as Record<string, unknown>,
-                            );
+                            value = this.parseNestedFormFields(value as Record<string, unknown>);
                         }
                         break;
 
                     case 'query':
                         value = param.name ? req.query[param.name] : req.query;
-                        if (
-                            !param.required &&
-                            (value === undefined || value === null)
-                        ) {
+                        if (!param.required && (value === undefined || value === null)) {
                             return value;
                         }
                         break;
 
                     case 'param':
-                        value = param.name
-                            ? req.params[param.name]
-                            : req.params;
+                        value = param.name ? req.params[param.name] : req.params;
                         break;
 
                     case 'header':
-                        value = param.name
-                            ? req.headers[param.name.toLowerCase()]
-                            : req.headers;
+                        value = param.name ? req.headers[param.name.toLowerCase()] : req.headers;
                         break;
 
                     case 'rawBody':
@@ -649,18 +530,14 @@ class ExpressAdapter implements IFrameworkAdapter {
                         break;
 
                     default:
-                        throw new Error(
-                            `Unknown parameter type: ${param.type}`,
-                        );
+                        throw new Error(`Unknown parameter type: ${param.type}`);
                 }
 
                 return validateAndTransform(value, param.schema, param.type);
             } catch (error) {
                 if (error instanceof BadRequestError) {
                     throw new BadRequestError(
-                        `Validation error for ${param.type}${
-                            param.name ? ` "${param.name}"` : ''
-                        }: ${error.message}`,
+                        `Validation error for ${param.type}${param.name ? ` "${param.name}"` : ''}: ${error.message}`,
                     );
                 }
                 throw error;
@@ -668,18 +545,12 @@ class ExpressAdapter implements IFrameworkAdapter {
         });
     }
 
-    private parseNestedFormFields(
-        obj: Record<string, unknown>,
-    ): Record<string, unknown> {
+    private parseNestedFormFields(obj: Record<string, unknown>): Record<string, unknown> {
         const result: Record<string, unknown> = {};
 
         for (const [key, val] of Object.entries(obj)) {
             if (key.includes('[') && key.includes(']')) {
-                this.setNestedValue(
-                    result,
-                    key,
-                    this.coerceValue(val as string),
-                );
+                this.setNestedValue(result, key, this.coerceValue(val as string));
             } else {
                 result[key] = val;
             }
@@ -688,11 +559,7 @@ class ExpressAdapter implements IFrameworkAdapter {
         return result;
     }
 
-    private setNestedValue(
-        obj: Record<string, unknown>,
-        path: string,
-        value: unknown,
-    ): void {
+    private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
         const keys = path.match(/[^\[\]]+/g);
         if (!keys || keys.length === 0) return;
 
@@ -741,36 +608,31 @@ class ExpressAdapter implements IFrameworkAdapter {
     ) {
         const paths = [basePath, `${basePath}/*`];
 
-        const nativeMiddlewares: RequestHandler[] = [
-            express.json(),
-            express.urlencoded({ extended: true }),
-        ];
+        const nativeMiddlewares: RequestHandler[] = [express.json(), express.urlencoded({ extended: true })];
 
         for (const p of paths) {
-            this.app.all(
-                p,
-                ...nativeMiddlewares,
-                async (req: Request, res: Response) => {
-                    const ctx: Context = new BasicContext(req, res);
+            this.app.all(p, ...nativeMiddlewares, async (req: Request, res: Response) => {
+                const ctx: Context = new BasicContext(req, res);
 
-                    const mws: Middleware[] = [
-                        ...this.globalMiddlewares,
-                        ...(defaultHandler.middlewares ?? []),
-                        async (_ctx, next) => {
-                            try {
-                                if (!res.headersSent) {
-                                    await defaultHandler.handler.call(
-                                        controllerInstance,
-                                        req,
-                                        res,
-                                    );
-                                }
-                            } finally {
-                                await next();
+                const requestId = crypto.randomUUID();
+                ctx.set('requestId', requestId);
+                res.setHeader('x-request-id', requestId);
+
+                const mws: Middleware[] = [
+                    ...this.globalMiddlewares,
+                    ...(defaultHandler.middlewares ?? []),
+                    async (_ctx, next) => {
+                        try {
+                            if (!res.headersSent) {
+                                await defaultHandler.handler.call(controllerInstance, req, res);
                             }
-                        },
-                    ];
+                        } finally {
+                            await next();
+                        }
+                    },
+                ];
 
+                await requestStore.run(ctx, async () => {
                     try {
                         await this.runPipeline(mws, ctx);
 
@@ -783,25 +645,16 @@ class ExpressAdapter implements IFrameworkAdapter {
                         });
 
                         if (req.files)
-                            for (const fileInput of Object.values(
-                                req.files,
-                            ).flat())
-                                new File(
-                                    fileInput as unknown as FileInput,
-                                ).cleanup();
+                            for (const fileInput of Object.values(req.files).flat())
+                                new File(fileInput as unknown as FileInput).cleanup();
                     }
-                },
-            );
+                });
+            });
         }
     }
     private registerCatchAllErrorHandler(): void {
         const handler = this.handleError.bind(this);
-        this.app.use(function catchAllErrorHandler(
-            err: Error,
-            _req: Request,
-            res: Response,
-            _next: NextFunction,
-        ) {
+        this.app.use(function catchAllErrorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
             handler(res, err);
         });
     }

@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 export interface Context {
     readonly request: IRequest;
     readonly response: IResponse;
@@ -43,3 +45,7 @@ export class BasicContext implements Context {
         this.store.set(k, v);
     }
 }
+
+export const requestStore = new AsyncLocalStorage<Context>();
+
+export const getRequestContext = (): Context | undefined => requestStore.getStore();

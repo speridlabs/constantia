@@ -23,16 +23,12 @@ export {
 export type { HttpMethod } from './decorators';
 
 // Context
-export { BasicContext } from './context';
+export { BasicContext, getRequestContext } from './context';
 export type { Context, IRequest, IResponse } from './context';
 
 // Metadata
 export { MetadataStorage } from './metadata';
-export type {
-    ControllerMetadata,
-    RouteMetadata,
-    ParameterMetadata,
-} from './metadata';
+export type { ControllerMetadata, RouteMetadata, ParameterMetadata } from './metadata';
 
 // Errors
 export {
@@ -56,17 +52,10 @@ export type { IFrameworkAdapter } from './adapters';
 
 // OpenAPI
 export { registerOpenAPI } from './openapi';
-export type {
-    OpenAPISpec,
-    OpenAPIConfig,
-    RegisterOpenAPIOptions,
-} from './openapi';
+export type { OpenAPISpec, OpenAPIConfig, RegisterOpenAPIOptions } from './openapi';
 
 // Controllers registration
-export {
-    registerControllersWrapper,
-    registerGlobalMiddlewaresWrapper,
-} from './controllers';
+export { registerControllersWrapper, registerGlobalMiddlewaresWrapper } from './controllers';
 
 // Logger
 export { setLogger, getLogger, logger } from './logger';
