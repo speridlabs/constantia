@@ -76,8 +76,8 @@ class ExpressAdapter implements IFrameworkAdapter {
             const ctx: Context = new BasicContext(req, res);
 
             const requestId = crypto.randomUUID();
-            ctx.set('x-request-id', requestId);
-            res.setHeader('requestId', requestId);
+            ctx.set('requestId', requestId);
+            res.setHeader('x-request-id', requestId);
 
             await requestStore.run(ctx, async () => {
                 try {
