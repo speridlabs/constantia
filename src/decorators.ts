@@ -305,3 +305,9 @@ export const DefaultHandler = (): MethodDecorator => {
         return descriptor;
     };
 };
+
+export const ContentType =
+    (contentType: string): MethodDecorator =>
+    (target: object, propertyKey: string | symbol) => {
+        MetadataStorage.getInstance().addContentType(target.constructor, propertyKey.toString(), contentType);
+    };

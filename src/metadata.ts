@@ -255,6 +255,12 @@ class MetadataStorage {
         this.pendingDefaultHandlers.set(target, { methodName, handler });
     }
 
+    addContentType(target: Function, methodName: string, contentType: string): void {
+        const routes = this.pendingRoutes.get(target);
+        const route = routes?.get(methodName);
+        if (route) route.contentType = contentType;
+    }
+
     private validateParameterCombination(
         methodName: string,
         newParam: ParameterMetadata,
@@ -407,6 +413,7 @@ interface RouteMetadata {
     returnType: SchemaType;
     parameters: ParameterMetadata[];
     middlewares: Middleware[];
+    contentType?: string;
 }
 
 export interface ControllerMetadata {

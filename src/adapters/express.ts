@@ -248,9 +248,10 @@ class ExpressAdapter implements IFrameworkAdapter {
 
             if (route.stream) return await this.handleStreamResponse(result, route, req, res);
 
-            res.setHeader('Content-Type', 'application/json');
+            const ct = route.contentType || 'application/json';
+            res.setHeader('Content-Type', ct);
             res.status(result ? 200 : 204);
-            res.send(JSON.stringify(result, null, 2));
+            res.send(ct === 'application/json' ? JSON.stringify(result, null, 2) : result);
 
             await next();
         };
