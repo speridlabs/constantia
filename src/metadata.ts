@@ -15,6 +15,7 @@ class MetadataStorage {
         Map<string, { options: StreamOptions; streamType: 'dataStream' | 'fileStream' }>
     > = new Map();
 
+    private pendingContentTypes = new Map<Function, Map<string, string>>();
     private pendingMiddlewares = new Map<Function, Map<string, Middleware[]>>();
     private pendingDefaultHandlers = new Map<Function, { methodName: string; handler: Function }>();
 
@@ -195,6 +196,7 @@ class MetadataStorage {
             );
 
         const streamInfo = this.pendingStreams.get(target)?.get(metadata.methodName);
+        const contentType = this.pendingContentTypes.get(target)?.get(metadata.methodName);
 
         if (streamInfo) {
             if (streamInfo.streamType === 'fileStream' && metadata.returnType.type !== 'fileStream') {
@@ -214,6 +216,7 @@ class MetadataStorage {
             path: normalizedPath,
             parameters: [],
             stream: streamInfo,
+            contentType,
             middlewares: [],
         });
 
@@ -256,9 +259,9 @@ class MetadataStorage {
     }
 
     addContentType(target: Function, methodName: string, contentType: string): void {
-        const routes = this.pendingRoutes.get(target);
-        const route = routes?.get(methodName);
-        if (route) route.contentType = contentType;
+        const contentTypes = this.pendingContentTypes.get(target) ?? new Map();
+        contentTypes.set(methodName, contentType);
+        this.pendingContentTypes.set(target, contentTypes);
     }
 
     private validateParameterCombination(
