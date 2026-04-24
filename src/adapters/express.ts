@@ -73,13 +73,7 @@ class ExpressAdapter implements IFrameworkAdapter {
         ];
 
         this.app[method](path, ...expressMiddlewares, async (req: Request, res: Response) => {
-            const ctx: Context = new BasicContext(req, res);
-
-            const requestId = crypto.randomUUID();
-            ctx.set('requestId', requestId);
-            res.setHeader('x-request-id', requestId);
-
-            await requestStore.run(ctx, async () => {
+            await this.withRequestContext(req, res, async (ctx) => {
                 try {
                     await this.runPipeline(frameworkPipeline, ctx);
                     if (!res.headersSent && !route.stream) res.status(204).end();
@@ -115,21 +109,26 @@ class ExpressAdapter implements IFrameworkAdapter {
         });
     }
 
+    private async withRequestContext(req: Request, res: Response, fn: (ctx: Context) => Promise<void>): Promise<void> {
+        const ctx: Context = new BasicContext(req, res);
+        const requestId = crypto.randomUUID();
+        ctx.set('requestId', requestId);
+        res.setHeader('x-request-id', requestId);
+        await requestStore.run(ctx, () => fn(ctx));
+    }
+
     private registerFallbackHandler(): void {
         this.app.use(async (req: Request, res: Response, next: NextFunction) => {
             if (res.headersSent) return next();
-            const ctx: Context = new BasicContext(req, res);
-
-            const requestId = crypto.randomUUID();
-            ctx.set('requestId', requestId);
-            res.setHeader('x-request-id', requestId);
-
-            await requestStore.run(ctx, async () => {
+            await this.withRequestContext(req, res, async (ctx) => {
                 try {
                     await this.runPipeline(this.globalMiddlewares, ctx);
                     if (res.headersSent) return;
-                    if (req.method === 'OPTIONS') return res.status(204).end();
-                    return this.handleError(res, new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`));
+                    if (req.method === 'OPTIONS') {
+                        res.status(204).end();
+                        return;
+                    }
+                    this.handleError(res, new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`));
                 } catch (err) {
                     this.handleError(res, err as Error);
                 }
@@ -258,7 +257,17 @@ class ExpressAdapter implements IFrameworkAdapter {
             const ct = route.contentType ?? 'application/json';
             res.setHeader('Content-Type', ct);
             res.status(result !== null && result !== undefined ? 200 : 204);
-            res.send(ct === 'application/json' ? JSON.stringify(result, null, 2) : result);
+
+            if (ct === 'application/json') {
+                res.send(JSON.stringify(result, null, 2));
+            } else {
+                if (result !== null && result !== undefined && typeof result !== 'string' && !Buffer.isBuffer(result)) {
+                    throw new Error(
+                        `Handler with content type '${ct}' must return string or Buffer, got ${typeof result}`,
+                    );
+                }
+                res.send(result);
+            }
 
             await next();
         };
@@ -620,30 +629,23 @@ class ExpressAdapter implements IFrameworkAdapter {
 
         for (const p of paths) {
             this.app.all(p, ...nativeMiddlewares, async (req: Request, res: Response) => {
-                const ctx: Context = new BasicContext(req, res);
-
-                const requestId = crypto.randomUUID();
-                ctx.set('requestId', requestId);
-                res.setHeader('x-request-id', requestId);
-
-                const mws: Middleware[] = [
-                    ...this.globalMiddlewares,
-                    ...(defaultHandler.middlewares ?? []),
-                    async (_ctx, next) => {
-                        try {
-                            if (!res.headersSent) {
-                                await defaultHandler.handler.call(controllerInstance, req, res);
+                await this.withRequestContext(req, res, async (ctx) => {
+                    const mws: Middleware[] = [
+                        ...this.globalMiddlewares,
+                        ...(defaultHandler.middlewares ?? []),
+                        async (_ctx, next) => {
+                            try {
+                                if (!res.headersSent) {
+                                    await defaultHandler.handler.call(controllerInstance, req, res);
+                                }
+                            } finally {
+                                await next();
                             }
-                        } finally {
-                            await next();
-                        }
-                    },
-                ];
+                        },
+                    ];
 
-                await requestStore.run(ctx, async () => {
                     try {
                         await this.runPipeline(mws, ctx);
-
                         if (!res.headersSent) res.status(204).end();
                     } catch (err) {
                         this.handleError(res, err as Error);

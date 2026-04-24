@@ -365,9 +365,10 @@ export const createOpenAPIResponses = (route: RouteMetadata, components: Compone
         successStatusCode = '204';
         successResponse.description = 'Success (No Content)';
     } else if (returnSchema) {
+        const contentType = route.contentType ?? 'application/json';
         successResponse.content = {
-            'application/json': {
-                schema: returnSchema,
+            [contentType]: {
+                schema: contentType === 'application/json' ? returnSchema : { type: 'string' },
             },
         };
     } else {

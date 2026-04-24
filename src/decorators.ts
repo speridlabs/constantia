@@ -309,5 +309,8 @@ export const DefaultHandler = (): MethodDecorator => {
 export const ContentType =
     (contentType: string): MethodDecorator =>
     (target: object, propertyKey: string | symbol) => {
+        if (!/^[\w!#$&^_.+-]+\/[\w!#$&^_.+-]+(?:\s*;.*)?$/.test(contentType)) {
+            throw new Error(`@ContentType: invalid MIME type "${contentType}"`);
+        }
         MetadataStorage.getInstance().addContentType(target.constructor, propertyKey.toString(), contentType);
     };
