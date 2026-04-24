@@ -119,14 +119,21 @@ class ExpressAdapter implements IFrameworkAdapter {
         this.app.use(async (req: Request, res: Response, next: NextFunction) => {
             if (res.headersSent) return next();
             const ctx: Context = new BasicContext(req, res);
-            try {
-                await this.runPipeline(this.globalMiddlewares, ctx);
-                if (res.headersSent) return;
-                if (req.method === 'OPTIONS') return res.status(204).end();
-                return this.handleError(res, new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`));
-            } catch (err) {
-                this.handleError(res, err as Error);
-            }
+
+            const requestId = crypto.randomUUID();
+            ctx.set('requestId', requestId);
+            res.setHeader('x-request-id', requestId);
+
+            await requestStore.run(ctx, async () => {
+                try {
+                    await this.runPipeline(this.globalMiddlewares, ctx);
+                    if (res.headersSent) return;
+                    if (req.method === 'OPTIONS') return res.status(204).end();
+                    return this.handleError(res, new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`));
+                } catch (err) {
+                    this.handleError(res, err as Error);
+                }
+            });
         });
     }
 

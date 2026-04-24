@@ -128,6 +128,8 @@ class MetadataStorage {
         this.pendingParameters.delete(target);
         this.pendingMiddlewares.delete(target);
         this.pendingDefaultHandlers.delete(target);
+        this.pendingStreams.delete(target);
+        this.pendingContentTypes.delete(target);
     }
 
     addRoute(target: Function, metadata: Omit<RouteMetadata, 'parameters' | 'middlewares'>): void {
