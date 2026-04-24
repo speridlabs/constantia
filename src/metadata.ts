@@ -139,7 +139,7 @@ class MetadataStorage {
             );
         }
 
-        const allowedTypes = ['object', 'array', 'dataStream', 'fileStream', 'null'];
+        const allowedTypes = ['object', 'array', 'dataStream', 'fileStream', 'null', 'string'];
         if (!allowedTypes.includes(metadata.returnType.type))
             throw new Error(
                 `ERROR in ${metadata.methodName}: return type must be ${allowedTypes.join(', ')} not ${metadata.returnType.type}`,
@@ -264,6 +264,9 @@ class MetadataStorage {
         const contentTypes = this.pendingContentTypes.get(target) ?? new Map();
         contentTypes.set(methodName, contentType);
         this.pendingContentTypes.set(target, contentTypes);
+
+        const route = this.pendingRoutes.get(target)?.get(methodName);
+        if (route) route.contentType = contentType;
     }
 
     private validateParameterCombination(

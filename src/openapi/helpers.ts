@@ -366,9 +366,15 @@ export const createOpenAPIResponses = (route: RouteMetadata, components: Compone
         successResponse.description = 'Success (No Content)';
     } else if (returnSchema) {
         const contentType = route.contentType ?? 'application/json';
+        const isBinary = contentType === 'application/octet-stream' || contentType.startsWith('image/');
         successResponse.content = {
             [contentType]: {
-                schema: contentType === 'application/json' ? returnSchema : { type: 'string' },
+                schema:
+                    contentType === 'application/json'
+                        ? returnSchema
+                        : isBinary
+                          ? { type: 'string', format: 'binary' }
+                          : { type: 'string' },
             },
         };
     } else {
