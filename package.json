@@ -1,6 +1,6 @@
 {
     "name": "constantia",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "A decorator-based, type-safe web framework for building self-documenting APIs with automatic OpenAPI generation",
     "type": "module",
     "main": "dist/index.js",

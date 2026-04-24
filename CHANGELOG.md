@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.1.0](https://github.com/speridlabs/constantia/compare/v2.0.0...v2.1.0) (2026-04-24)
+
+### Features
+
+* add AsyncLocalStorage request context, structured logger meta, and request ID ([a116d87](https://github.com/speridlabs/constantia/commit/a116d8719211980b8260c4b604f9836126d9226c))
+* add Content-Type decorator ([7fde15e](https://github.com/speridlabs/constantia/commit/7fde15e5966f99368320e76086dc0615ebf7b7fc))
+* fix Copilot comment ([f921a00](https://github.com/speridlabs/constantia/commit/f921a007a104d39efe1bcf07c75d2b1763e13d1f))
+
+### Bug Fixes
+
+* address PR review for ContentType and request context ([8d42bbe](https://github.com/speridlabs/constantia/commit/8d42bbefe6cc9bf2e321ca7dc7f7bd69008d857d))
+* allow string return type, decorator order and binary OpenAPI schema ([1f9b55e](https://github.com/speridlabs/constantia/commit/1f9b55e9a0760c8881b13a3149d236eb1e513042))
+* clean up pending maps and add requestId to fallback handler ([e2c02a3](https://github.com/speridlabs/constantia/commit/e2c02a3166d0ceab4b45a95c9ec4bdfd4be593bd))
+* fix Copilot comment about decorator order ([046dadc](https://github.com/speridlabs/constantia/commit/046dadcdcd501f053b5ebf1e155384e161160e11))
+* restore CHANGELOG.md from master ([94c8689](https://github.com/speridlabs/constantia/commit/94c8689f87e43649775d5c06ba69ad004b347692))
+
 ## [2.0.0](https://github.com/speridlabs/constantia/compare/v1.1.3...v2.0.0) (2026-04-21)
 
 ### ⚠ BREAKING CHANGES
