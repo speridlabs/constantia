@@ -20,11 +20,7 @@
             {
                 "preset": "conventionalcommits",
                 "parserOpts": {
-                    "noteKeywords": [
-                        "BREAKING CHANGE",
-                        "BREAKING CHANGES",
-                        "breaking"
-                    ]
+                    "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "breaking"]
                 },
                 "writerOpts": {
                     "commitsSort": ["subject", "scope"]

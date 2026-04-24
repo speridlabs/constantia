@@ -21,14 +21,7 @@ const decodeQueryParam = (value: string): string | number | boolean => {
 export const validateAndTransform = (
     value: unknown,
     schema: SchemaType,
-    paramType:
-        | 'query'
-        | 'body'
-        | 'param'
-        | 'header'
-        | 'file'
-        | 'ctx'
-        | 'rawBody',
+    paramType: 'query' | 'body' | 'param' | 'header' | 'file' | 'ctx' | 'rawBody',
     path: string = '',
 ): unknown => {
     if (paramType === 'ctx' || paramType === 'rawBody') return value;
@@ -38,9 +31,7 @@ export const validateAndTransform = (
 
     if (value === undefined || value === null) {
         if (schema.type !== 'null') {
-            throw new BadRequestError(
-                `Value is required for ${contextDisplay}${pathDisplay}`,
-            );
+            throw new BadRequestError(`Value is required for ${contextDisplay}${pathDisplay}`);
         }
         return null;
     }
@@ -59,9 +50,7 @@ export const validateAndTransform = (
     switch (schema.type) {
         case 'string':
             if (typeof value !== 'string') {
-                throw new BadRequestError(
-                    `Expected string${pathDisplay}, got ${typeof value}`,
-                );
+                throw new BadRequestError(`Expected string${pathDisplay}, got ${typeof value}`);
             }
             return value;
 
@@ -69,16 +58,12 @@ export const validateAndTransform = (
             if (typeof value === 'string') {
                 const num = Number(value);
                 if (isNaN(num)) {
-                    throw new BadRequestError(
-                        `Invalid number format${pathDisplay}: ${value}`,
-                    );
+                    throw new BadRequestError(`Invalid number format${pathDisplay}: ${value}`);
                 }
                 return num;
             }
             if (typeof value !== 'number') {
-                throw new BadRequestError(
-                    `Expected number${pathDisplay}, got ${typeof value}`,
-                );
+                throw new BadRequestError(`Expected number${pathDisplay}, got ${typeof value}`);
             }
             return value;
 
@@ -87,14 +72,10 @@ export const validateAndTransform = (
                 const lowered = value.toLowerCase();
                 if (lowered === 'true') return true;
                 if (lowered === 'false') return false;
-                throw new BadRequestError(
-                    `Invalid boolean value${pathDisplay}: ${value}`,
-                );
+                throw new BadRequestError(`Invalid boolean value${pathDisplay}: ${value}`);
             }
             if (typeof value !== 'boolean') {
-                throw new BadRequestError(
-                    `Expected boolean${pathDisplay}, got ${typeof value}`,
-                );
+                throw new BadRequestError(`Expected boolean${pathDisplay}, got ${typeof value}`);
             }
             return value;
 
@@ -107,24 +88,15 @@ export const validateAndTransform = (
                             throw new Error('Not an array');
                         }
                     } catch {
-                        throw new BadRequestError(
-                            `Invalid array format${pathDisplay}`,
-                        );
+                        throw new BadRequestError(`Invalid array format${pathDisplay}`);
                     }
                 } else {
-                    throw new BadRequestError(
-                        `Expected array${pathDisplay}, got ${typeof value}`,
-                    );
+                    throw new BadRequestError(`Expected array${pathDisplay}, got ${typeof value}`);
                 }
             }
             return (value as unknown[]).map((item, index) => {
                 const itemPath = path ? `${path}[${index}]` : `[${index}]`;
-                return validateAndTransform(
-                    item,
-                    schema.items!,
-                    paramType,
-                    itemPath,
-                );
+                return validateAndTransform(item, schema.items!, paramType, itemPath);
             });
 
         case 'object':
@@ -133,14 +105,10 @@ export const validateAndTransform = (
                     try {
                         value = JSON.parse(value);
                     } catch {
-                        throw new BadRequestError(
-                            `Invalid object format${pathDisplay}`,
-                        );
+                        throw new BadRequestError(`Invalid object format${pathDisplay}`);
                     }
                 } else {
-                    throw new BadRequestError(
-                        `Expected object${pathDisplay}, got ${typeof value}`,
-                    );
+                    throw new BadRequestError(`Expected object${pathDisplay}, got ${typeof value}`);
                 }
             }
 
@@ -150,9 +118,7 @@ export const validateAndTransform = (
 
             const result: Record<string, unknown> = {};
             if (schema.properties) {
-                for (const [key, propSchema] of Object.entries(
-                    schema.properties,
-                )) {
+                for (const [key, propSchema] of Object.entries(schema.properties)) {
                     const propPath = path ? `${path}.${key}` : key;
                     const objValue = value as Record<string, unknown>;
                     if (schema.required?.includes(key) && !(key in objValue)) {
@@ -161,30 +127,18 @@ export const validateAndTransform = (
                         );
                     }
                     if (key in objValue) {
-                        result[key] = validateAndTransform(
-                            objValue[key],
-                            propSchema,
-                            paramType,
-                            propPath,
-                        );
+                        result[key] = validateAndTransform(objValue[key], propSchema, paramType, propPath);
                     }
                 }
             }
 
             if (schema.additionalProperties) {
                 const objValue = value as Record<string, unknown>;
-                const knownKeys = schema.properties
-                    ? new Set(Object.keys(schema.properties))
-                    : new Set<string>();
+                const knownKeys = schema.properties ? new Set(Object.keys(schema.properties)) : new Set<string>();
                 for (const [key, val] of Object.entries(objValue)) {
                     if (!knownKeys.has(key)) {
                         const propPath = path ? `${path}.${key}` : key;
-                        result[key] = validateAndTransform(
-                            val,
-                            schema.additionalProperties,
-                            paramType,
-                            propPath,
-                        );
+                        result[key] = validateAndTransform(val, schema.additionalProperties, paramType, propPath);
                     }
                 }
             }
@@ -193,20 +147,13 @@ export const validateAndTransform = (
 
         case 'union':
             if (!schema.oneOf) {
-                throw new BadRequestError(
-                    `Invalid union type definition${pathDisplay}`,
-                );
+                throw new BadRequestError(`Invalid union type definition${pathDisplay}`);
             }
 
             const errors: Error[] = [];
             for (const subSchema of schema.oneOf) {
                 try {
-                    return validateAndTransform(
-                        value,
-                        subSchema,
-                        paramType,
-                        path,
-                    );
+                    return validateAndTransform(value, subSchema, paramType, path);
                 } catch (e) {
                     errors.push(e as Error);
                 }
@@ -226,21 +173,15 @@ export const validateAndTransform = (
                             throw new Error('Not an array');
                         }
                     } catch {
-                        throw new BadRequestError(
-                            `Invalid tuple format${pathDisplay}`,
-                        );
+                        throw new BadRequestError(`Invalid tuple format${pathDisplay}`);
                     }
                 } else {
-                    throw new BadRequestError(
-                        `Expected tuple (array)${pathDisplay}, got ${typeof value}`,
-                    );
+                    throw new BadRequestError(`Expected tuple (array)${pathDisplay}, got ${typeof value}`);
                 }
             }
 
             if (!schema.elements || schema.elements.length === 0) {
-                throw new BadRequestError(
-                    `Invalid tuple schema definition${pathDisplay}`,
-                );
+                throw new BadRequestError(`Invalid tuple schema definition${pathDisplay}`);
             }
 
             if ((value as unknown[]).length !== schema.elements.length) {
@@ -251,20 +192,13 @@ export const validateAndTransform = (
 
             return (value as unknown[]).map((item, index) => {
                 const itemPath = path ? `${path}[${index}]` : `[${index}]`;
-                return validateAndTransform(
-                    item,
-                    schema.elements![index],
-                    paramType,
-                    itemPath,
-                );
+                return validateAndTransform(item, schema.elements![index], paramType, itemPath);
             });
 
         case 'null':
             return null;
 
         default:
-            throw new BadRequestError(
-                `Unsupported type: ${schema.type} for ${paramType}`,
-            );
+            throw new BadRequestError(`Unsupported type: ${schema.type} for ${paramType}`);
     }
 };
