@@ -31,8 +31,14 @@ declare global {
 class ExpressAdapter implements IFrameworkAdapter {
     private globalMiddlewares: Middleware[] = [];
     private optionsRegistered: Set<string> = new Set();
+    private readonly resolveController: ControllerResolver;
 
-    constructor(private readonly app: Express) {}
+    constructor(
+        private readonly app: Express,
+        options: ExpressAdapterOptions = {},
+    ) {
+        this.resolveController = options.controllerResolver ?? ((cls) => new cls());
+    }
 
     registerGlobalMiddlewares(middlewares: Middleware[]): void {
         this.app.use(express.urlencoded({ extended: true }));
@@ -52,7 +58,7 @@ class ExpressAdapter implements IFrameworkAdapter {
     }
 
     private registerController(controller: ControllerMetadata, controllerClass: Function): void {
-        const controllerInstance = new (controllerClass as new () => unknown)();
+        const controllerInstance = this.resolveController(controllerClass as new () => unknown);
 
         if (controller.defaultHandler)
             return this.registerDefaultHandler(controller.path, controller.defaultHandler, controllerInstance);
@@ -670,4 +676,11 @@ class ExpressAdapter implements IFrameworkAdapter {
     }
 }
 
+type ControllerResolver = (controllerClass: new () => unknown) => unknown;
+
+interface ExpressAdapterOptions {
+    controllerResolver?: ControllerResolver;
+}
+
 export { ExpressAdapter };
+export type { ControllerResolver, ExpressAdapterOptions };
