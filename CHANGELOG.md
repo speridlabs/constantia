@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.0](https://github.com/speridlabs/constantia/compare/v2.1.0...v2.2.0) (2026-05-03)
+
+### Features
+
+* **express:** expose controllerResolver hook for DI containers ([a095b8b](https://github.com/speridlabs/constantia/commit/a095b8b6b3ac1e14a2e8b2ec2d36f55daeb3f228))
+
 ## [2.1.0](https://github.com/speridlabs/constantia/compare/v2.0.0...v2.1.0) (2026-04-24)
 
 ### Features
