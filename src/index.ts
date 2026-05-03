@@ -49,6 +49,7 @@ export { File as FrameworkFile } from './types/files';
 
 // Adapters
 export { ExpressAdapter } from './adapters/express';
+export type { ControllerResolver, ExpressAdapterOptions } from './adapters/express';
 export type { IFrameworkAdapter } from './adapters';
 
 // OpenAPI
