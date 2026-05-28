@@ -99,6 +99,25 @@ class OpenAPIController {
 
 export interface RegisterOpenAPIOptions {
     config?: OpenAPIConfig;
+    /**
+     * Custom serializer for the OpenAPI spec when writing to disk via
+     * `--generate-spec` / `--only-generate-spec`. Receives the assembled
+     * spec and returns the string to be written.
+     *
+     * Defaults to `JSON.stringify(spec, null, 2)`.
+     *
+     * Useful when the committed `openapi.json` must match a project-wide
+     * formatter (Prettier, sort-keys, custom indentation) so dev and build
+     * pipelines do not produce different files.
+     *
+     * @example
+     *     import { format } from 'prettier';
+     *     await registerOpenAPI(adapter, {
+     *         serializeSpec: async (spec) =>
+     *             format(JSON.stringify(spec), { parser: 'json', tabWidth: 4 }),
+     *     });
+     */
+    serializeSpec?: (spec: OpenAPISpec) => string | Promise<string>;
 }
 
 export const registerOpenAPI = async (
@@ -127,8 +146,10 @@ export const registerOpenAPI = async (
         const controller = new OpenAPIController(options.config);
         const spec = await controller.getOpenAPISpec();
 
+        const serialized = options.serializeSpec ? await options.serializeSpec(spec) : JSON.stringify(spec, null, 2);
+
         await fs.promises.mkdir(dirPath, { recursive: true });
-        await fs.promises.writeFile(fullPath, JSON.stringify(spec, null, 2));
+        await fs.promises.writeFile(fullPath, serialized);
 
         const pathParts = fullPath.split('/').filter(Boolean);
         const lastThreeDirs = pathParts.slice(-3).join('/');
