@@ -20,9 +20,16 @@ export interface OpenAPIConfig {
 class OpenAPIController {
     private cachedSpec: OpenAPISpec | null = null;
     private config: OpenAPIConfig;
+    private metadataProvider: () => ControllerMetadata[];
 
-    constructor(config: OpenAPIConfig = {}) {
+    constructor(config: OpenAPIConfig = {}, metadataProvider?: () => ControllerMetadata[]) {
         this.config = config;
+        this.metadataProvider =
+            metadataProvider ??
+            (() =>
+                Array.from(MetadataStorage.getInstance().controllers.values()).filter(
+                    (meta) => meta.path !== '/openapi.json',
+                ));
     }
 
     private generateOpenAPISpec(allMetadata: ControllerMetadata[]): OpenAPISpec {
@@ -89,13 +96,19 @@ class OpenAPIController {
 
     @Get()
     async getOpenAPISpec(): Promise<OpenAPISpec> {
-        const allMetadata = Array.from(MetadataStorage.getInstance().controllers.values()).filter(
-            (meta) => meta.path !== '/openapi.json',
-        );
-
-        return this.generateOpenAPISpec(allMetadata);
+        return this.generateOpenAPISpec(this.metadataProvider());
     }
 }
+
+export const writeSpecFile = async (spec: OpenAPISpec, specFilePath: string): Promise<void> => {
+    const fullPath = path.resolve(specFilePath);
+
+    await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.promises.writeFile(fullPath, JSON.stringify(spec, null, 2));
+
+    const lastThreeDirs = fullPath.split('/').filter(Boolean).slice(-3).join('/');
+    logger.info(`OpenAPI spec written to ...${lastThreeDirs}`);
+};
 
 export interface RegisterOpenAPIOptions {
     config?: OpenAPIConfig;
@@ -121,18 +134,8 @@ export const registerOpenAPI = async (
         let specFilePath = args[specFileArgIndex + 1];
         if (!specFilePath || specFilePath.startsWith('--')) specFilePath = './openapi.json';
 
-        const fullPath = path.resolve(specFilePath);
-        const dirPath = path.dirname(fullPath);
-
         const controller = new OpenAPIController(options.config);
-        const spec = await controller.getOpenAPISpec();
-
-        await fs.promises.mkdir(dirPath, { recursive: true });
-        await fs.promises.writeFile(fullPath, JSON.stringify(spec, null, 2));
-
-        const pathParts = fullPath.split('/').filter(Boolean);
-        const lastThreeDirs = pathParts.slice(-3).join('/');
-        logger.info(`OpenAPI spec written to ...${lastThreeDirs}`);
+        await writeSpecFile(await controller.getOpenAPISpec(), specFilePath);
 
         if (onlyGenerate) process.exit(0);
     }
@@ -144,4 +147,5 @@ export const registerOpenAPI = async (
     adapter.registerControllers([[openAPIControllerMetadata], [OpenAPIController]]);
 };
 
+export { OpenAPIController };
 export { type OpenAPISpec };

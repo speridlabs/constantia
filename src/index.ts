@@ -56,6 +56,10 @@ export type { IFrameworkAdapter } from './adapters';
 export { registerOpenAPI } from './openapi';
 export type { OpenAPISpec, OpenAPIConfig, RegisterOpenAPIOptions } from './openapi';
 
+// Instance-scoped framework (one per app/adapter)
+export { Constantia } from './constantia';
+export type { ConstantiaOpenAPIOptions } from './constantia';
+
 // Controllers registration
 export { registerControllersWrapper, registerGlobalMiddlewaresWrapper } from './controllers';
 
