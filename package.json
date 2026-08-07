@@ -1,6 +1,6 @@
 {
     "name": "constantia",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "A decorator-based, type-safe web framework for building self-documenting APIs with automatic OpenAPI generation",
     "type": "module",
     "main": "dist/index.js",
@@ -130,5 +130,6 @@
         "src/**/*.{ts,tsx,html,js,jsx,json,yml}": [
             "prettier --write"
         ]
-    }
+    },
+    "packageManager": "pnpm@10.33.0"
 }

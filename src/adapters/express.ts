@@ -45,11 +45,15 @@ class ExpressAdapter implements IFrameworkAdapter {
         this.globalMiddlewares = middlewares;
     }
 
-    registerControllers([metadata, controllerClasses]: [ControllerMetadata[], Function[]]): void {
+    registerControllers(
+        [metadata, controllerClasses]: [ControllerMetadata[], Function[]],
+        instances?: Map<Function, unknown>,
+    ): void {
         if (metadata.length !== controllerClasses.length)
             throw new Error('Metadata and controller classes arrays must have the same length');
 
-        for (let i = 0; i < metadata.length; i++) this.registerController(metadata[i], controllerClasses[i]);
+        for (let i = 0; i < metadata.length; i++)
+            this.registerController(metadata[i], controllerClasses[i], instances?.get(controllerClasses[i]));
     }
 
     finalize(): void {
@@ -57,8 +61,8 @@ class ExpressAdapter implements IFrameworkAdapter {
         this.registerCatchAllErrorHandler();
     }
 
-    private registerController(controller: ControllerMetadata, controllerClass: Function): void {
-        const controllerInstance = this.resolveController(controllerClass as new () => unknown);
+    private registerController(controller: ControllerMetadata, controllerClass: Function, instance?: unknown): void {
+        const controllerInstance = instance ?? this.resolveController(controllerClass as new () => unknown);
 
         if (controller.defaultHandler)
             return this.registerDefaultHandler(controller.path, controller.defaultHandler, controllerInstance);
