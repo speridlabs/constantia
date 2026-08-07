@@ -124,7 +124,10 @@
     "pnpm": {
         "onlyBuiltDependencies": [
             "@deepkit/type-compiler"
-        ]
+        ],
+        "overrides": {
+            "@semantic-release/npm": "^13.1.5"
+        }
     },
     "lint-staged": {
         "src/**/*.{ts,tsx,html,js,jsx,json,yml}": [
