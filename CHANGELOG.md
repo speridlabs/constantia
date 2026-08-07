@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.0](https://github.com/speridlabs/constantia/compare/v2.2.0...v2.3.0) (2026-08-07)
+
+### Features
+
+* instance-scoped framework registration and per-app openapi specs ([1333b55](https://github.com/speridlabs/constantia/commit/1333b552653725915aed70e0bcc8e5c6113d10ef))
+
 ## [2.2.0](https://github.com/speridlabs/constantia/compare/v2.1.0...v2.2.0) (2026-05-03)
 
 ### Features
