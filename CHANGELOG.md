@@ -6,6 +6,16 @@
 
 * instance-scoped framework registration and per-app openapi specs ([1333b55](https://github.com/speridlabs/constantia/commit/1333b552653725915aed70e0bcc8e5c6113d10ef))
 
+### Bug Fixes
+
+* force semantic-release to load the oidc-capable npm plugin ([#7](https://github.com/speridlabs/constantia/issues/7)) ([41ab0bb](https://github.com/speridlabs/constantia/commit/41ab0bbe05a894526bd20b4bc7f1b71ff284953e))
+
+## [2.3.0](https://github.com/speridlabs/constantia/compare/v2.2.0...v2.3.0) (2026-08-07)
+
+### Features
+
+* instance-scoped framework registration and per-app openapi specs ([1333b55](https://github.com/speridlabs/constantia/commit/1333b552653725915aed70e0bcc8e5c6113d10ef))
+
 ## [2.2.0](https://github.com/speridlabs/constantia/compare/v2.1.0...v2.2.0) (2026-05-03)
 
 ### Features
