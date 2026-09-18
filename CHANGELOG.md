@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.1](https://github.com/speridlabs/constantia/compare/v2.3.0...v2.3.1) (2026-09-18)
+
+### Bug Fixes
+
+* stop double-decoding and coercing query parameters ([#8](https://github.com/speridlabs/constantia/issues/8)) ([0082a95](https://github.com/speridlabs/constantia/commit/0082a952180718542344ea615f2f5196be4ad16d))
+
 ## [2.3.0](https://github.com/speridlabs/constantia/compare/v2.2.0...v2.3.0) (2026-08-07)
 
 ### Features
