@@ -1,23 +1,6 @@
 import { type SchemaType } from '../types';
 import { BadRequestError } from '../errors';
 
-const decodeQueryParam = (value: string): string | number | boolean => {
-    try {
-        const decoded = decodeURIComponent(value);
-
-        if (/^-?\d+(\.\d+)?$/.test(decoded)) {
-            return Number(decoded);
-        }
-
-        if (decoded.toLowerCase() === 'true') return true;
-        if (decoded.toLowerCase() === 'false') return false;
-
-        return decoded;
-    } catch {
-        throw new BadRequestError(`Failed to decode query parameter: ${value}`);
-    }
-};
-
 export const validateAndTransform = (
     value: unknown,
     schema: SchemaType,
@@ -34,10 +17,6 @@ export const validateAndTransform = (
             throw new BadRequestError(`Value is required for ${contextDisplay}${pathDisplay}`);
         }
         return null;
-    }
-
-    if (paramType === 'query' && typeof value === 'string') {
-        value = decodeQueryParam(value);
     }
 
     if (schema.type === 'file' || paramType === 'file') {
