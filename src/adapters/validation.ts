@@ -31,7 +31,7 @@ export const validateAndTransform = (
             if (typeof value !== 'string') {
                 throw new BadRequestError(`Expected string${pathDisplay}, got ${typeof value}`);
             }
-            return value;
+            return assertEnum(value, schema, pathDisplay);
 
         case 'number':
             if (typeof value === 'string') {
@@ -39,24 +39,24 @@ export const validateAndTransform = (
                 if (isNaN(num)) {
                     throw new BadRequestError(`Invalid number format${pathDisplay}: ${value}`);
                 }
-                return num;
+                return assertEnum(num, schema, pathDisplay);
             }
             if (typeof value !== 'number') {
                 throw new BadRequestError(`Expected number${pathDisplay}, got ${typeof value}`);
             }
-            return value;
+            return assertEnum(value, schema, pathDisplay);
 
         case 'boolean':
             if (typeof value === 'string') {
                 const lowered = value.toLowerCase();
-                if (lowered === 'true') return true;
-                if (lowered === 'false') return false;
+                if (lowered === 'true') return assertEnum(true, schema, pathDisplay);
+                if (lowered === 'false') return assertEnum(false, schema, pathDisplay);
                 throw new BadRequestError(`Invalid boolean value${pathDisplay}: ${value}`);
             }
             if (typeof value !== 'boolean') {
                 throw new BadRequestError(`Expected boolean${pathDisplay}, got ${typeof value}`);
             }
-            return value;
+            return assertEnum(value, schema, pathDisplay);
 
         case 'array':
             if (!Array.isArray(value)) {
@@ -180,4 +180,11 @@ export const validateAndTransform = (
         default:
             throw new BadRequestError(`Unsupported type: ${schema.type} for ${paramType}`);
     }
+};
+
+const assertEnum = <T extends string | number | boolean>(value: T, schema: SchemaType, pathDisplay: string): T => {
+    if (schema.enum && !schema.enum.includes(value)) {
+        throw new BadRequestError(`Expected one of ${schema.enum.join(', ')}${pathDisplay}, got ${String(value)}`);
+    }
+    return value;
 };

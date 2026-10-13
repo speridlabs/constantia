@@ -42,6 +42,22 @@ const reflectionToSchema = (ref: ReturnType<typeof ReflectionClass.from> | Type)
 
 const processingTypes = new WeakSet<object>();
 
+const literalToSchema = (literal: unknown): SchemaType => {
+    if (typeof literal === 'string') return { type: 'string', enum: [literal] };
+    if (typeof literal === 'number') return { type: 'number', enum: [literal] };
+    if (typeof literal === 'boolean') return { type: 'boolean', enum: [literal] };
+    return { type: 'string' };
+};
+
+const unionToSchema = (types: SchemaType[]): SchemaType => {
+    const values = types.filter((schema) => schema.type !== 'null');
+    const isEnum = values.length > 0 && values.every((schema) => schema.enum && schema.type === values[0].type);
+    if (!isEnum) return { oneOf: types, type: 'union' };
+
+    const merged: SchemaType = { type: values[0].type, enum: values.flatMap((schema) => schema.enum ?? []) };
+    return values.length === types.length ? merged : { oneOf: [merged, { type: 'null' }], type: 'union' };
+};
+
 const reflectionTypeToSchema = (t: Type): SchemaType => {
     if ((t.kind === ReflectionKind.objectLiteral || t.kind === ReflectionKind.class) && processingTypes.has(t)) {
         return { type: 'object' };
@@ -93,12 +109,10 @@ const reflectionTypeToSchema = (t: Type): SchemaType => {
             }
             case ReflectionKind.promise:
                 return reflectionTypeToSchema(t.type);
-            case ReflectionKind.union: {
-                const types = t.types.map((subType) => reflectionTypeToSchema(subType));
-                return { oneOf: types, type: 'union' };
-            }
+            case ReflectionKind.union:
+                return unionToSchema(t.types.map((subType) => reflectionTypeToSchema(subType)));
             case ReflectionKind.literal:
-                return { type: 'string' };
+                return literalToSchema(t.literal);
             case ReflectionKind.tuple: {
                 const elements = t.types.map((elementType) => reflectionTypeToSchema(elementType));
                 return {
@@ -151,6 +165,7 @@ interface SchemaType {
         | 'void'
         | 'tuple';
     format?: string;
+    enum?: (string | number | boolean)[];
     items?: SchemaType;
     elements?: SchemaType[];
     required?: string[];
