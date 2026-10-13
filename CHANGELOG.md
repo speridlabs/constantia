@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.0](https://github.com/speridlabs/constantia/compare/v2.3.1...v2.4.0) (2026-10-13)
+
+### Features
+
+* emit enum schemas for literal types and literal unions ([#9](https://github.com/speridlabs/constantia/issues/9)) ([6dbd2f7](https://github.com/speridlabs/constantia/commit/6dbd2f76f9b7625aaca01135814cdd7e43f2b6a4))
+
 ## [2.3.1](https://github.com/speridlabs/constantia/compare/v2.3.0...v2.3.1) (2026-09-18)
 
 ### Bug Fixes
