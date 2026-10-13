@@ -26,11 +26,11 @@ export const schemaTypeToOpenAPISchema = (
             if (schemaType.format) {
                 return { type: 'string', format: schemaType.format };
             }
-            return { type: 'string' };
+            return schemaType.enum ? { type: 'string', enum: schemaType.enum } : { type: 'string' };
         case 'number':
-            return { type: 'number' };
+            return schemaType.enum ? { type: 'number', enum: schemaType.enum } : { type: 'number' };
         case 'boolean':
-            return { type: 'boolean' };
+            return schemaType.enum ? { type: 'boolean', enum: schemaType.enum } : { type: 'boolean' };
         case 'null':
         case 'void':
             return { nullable: true };

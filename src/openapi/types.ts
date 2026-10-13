@@ -71,6 +71,7 @@ export interface ResponseObject {
 export interface SchemaObject {
     type?: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object';
     format?: string;
+    enum?: (string | number | boolean)[];
     items?: SchemaObject | ReferenceObject;
     properties?: { [propertyName: string]: SchemaObject | ReferenceObject };
     required?: string[];

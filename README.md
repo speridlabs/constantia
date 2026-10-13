@@ -289,6 +289,8 @@ Or generate alongside the running server:
 node dist/app.js --generate-spec ./openapi.json
 ```
 
+Literal types and unions of same-typed literals become `enum`s, both in the spec and in request validation. Declare them as literal unions (`type Plan = 'free' | 'pro'`): Deepkit resolves `(typeof PLANS)[number]` to the first element only.
+
 ## Custom Logger
 
 By default Constantia logs to the console. Plug in your own:
