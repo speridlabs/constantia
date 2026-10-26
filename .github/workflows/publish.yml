@@ -11,7 +11,10 @@ on:
 jobs:
     publish-npm:
         runs-on: ubuntu-latest
-        if: github.event.workflow_run.conclusion == 'success'
+        if: >-
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.event == 'push' &&
+            github.event.workflow_run.head_repository.full_name == github.repository
 
         permissions:
             contents: write
@@ -27,7 +30,7 @@ jobs:
                   fetch-depth: 0
 
             - name: Setup pnpm
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
@@ -72,7 +75,7 @@ jobs:
                   ls -R dist
 
             - name: Upgrade npm for trusted publishing
-              run: npm install -g npm@latest && npm --version
+              run: npm install -g npm@12.2.0 && npm --version
 
             - name: Publish to npm with Semantic Release
               run: npx semantic-release
